@@ -79,15 +79,15 @@ public class MySongManager {
             track.setAlbumId(cursor.getString(albumIdColumn));
             track.setAlbumKey(cursor.getString(albumKeyColumn));
 
-            Log.d(TAG, "MediaStore.Audio.Media._ID: " + track.getId());
-            Log.d(TAG, "MediaStore.Audio.Media.DISPLAY_NAME: " + track.getDisplayName());
-            Log.d(TAG, "MediaStore.Audio.Media.TITLE: " + track.getTitle());
-            Log.d(TAG, "MediaStore.Audio.Media.TITLE_KEY: " + track.getTitleKey());
-            Log.d(TAG, "MediaStore.Audio.Media.DATE_ADDED: " + track.getDateAdded());
-
-            Log.d(TAG, "MediaStore.Audio.Media.ALBUM: " + track.getAlbum());
-            Log.d(TAG, "MediaStore.Audio.Media.ALBUM_ID: " + track.getAlbumId());
-            Log.d(TAG, "MediaStore.Audio.Media.ALBUM_KEY: " + track.getAlbumKey());
+//            Log.d(TAG, "MediaStore.Audio.Media._ID: " + track.getId());
+//            Log.d(TAG, "MediaStore.Audio.Media.DISPLAY_NAME: " + track.getDisplayName());
+//            Log.d(TAG, "MediaStore.Audio.Media.TITLE: " + track.getTitle());
+//            Log.d(TAG, "MediaStore.Audio.Media.TITLE_KEY: " + track.getTitleKey());
+//            Log.d(TAG, "MediaStore.Audio.Media.DATE_ADDED: " + track.getDateAdded());
+//
+//            Log.d(TAG, "MediaStore.Audio.Media.ALBUM: " + track.getAlbum());
+//            Log.d(TAG, "MediaStore.Audio.Media.ALBUM_ID: " + track.getAlbumId());
+//            Log.d(TAG, "MediaStore.Audio.Media.ALBUM_KEY: " + track.getAlbumKey());
 
             realm.beginTransaction();
             realm.copyToRealmOrUpdate(track);
