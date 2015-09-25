@@ -8,11 +8,14 @@ import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.Random;
 
 import io.realm.Realm;
@@ -24,6 +27,7 @@ import io.realm.RealmResults;
 public class MediaPlayerService extends Service {
 
     private final String TAG = "MediaPlayerService";
+    String android_id = null;
 
     Realm realm = null;
     MediaPlayer mp = null;
@@ -36,6 +40,7 @@ public class MediaPlayerService extends Service {
     private boolean wasPlaying = false;
 
     RealmResults<Track> tracks = null;
+    private Track currentTrack = null;
 
     @Override
     public void onCreate() {
@@ -43,6 +48,8 @@ public class MediaPlayerService extends Service {
 
         realm = Realm.getInstance(MediaPlayerService.this);
         tracks = realm.where(Track.class).findAll();
+
+        android_id = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
 
         mOnAudioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
             @Override
@@ -108,6 +115,26 @@ public class MediaPlayerService extends Service {
         mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
+                Log.d(TAG, "onCompletion is called! I want to monitor in the future to see if when i skip a song, will this method be played");
+
+                TrackStats stats = new TrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED, android_id, Calendar.getInstance().getTime());
+
+                realm.beginTransaction();
+                realm.copyToRealm(stats);
+                realm.commitTransaction();
+
+                RealmResults<TrackStats> res =
+                        realm.where(TrackStats.class)
+                                //.equalTo("title", currentTrack.getTitle())
+                                .findAll();
+
+                Log.d(TAG, "Kaypoh:res.size(): " + res.size());
+                for (TrackStats ts : res) {
+                    Log.d(TAG, "Kaypoh:ts.getTitle(): " + ts.getTitle());
+                    Log.d(TAG, "Kaypoh:ts.getType(): " + ts.getType());
+                    Log.d(TAG, "Kaypoh:ts.getCreatedAt(): " + ts.getCreatedAt());
+                }
+
                 prepNextSong();
             }
         });
@@ -117,18 +144,24 @@ public class MediaPlayerService extends Service {
         prepNextSong();
     }
 
+    public boolean isPlaying() {
+        if (mp == null) {
+            return false;
+        } else {
+            return mp.isPlaying();
+        }
+    }
+
     public boolean prepNextSong() {
         mp.reset();
 
         if (tracks.size() > 0) {
             Random random = new Random();
 
-            Track t = tracks.get(random.nextInt(tracks.size()));
-
-            Log.d(TAG, "t.getPath(): " + t.getPath());
+            currentTrack = tracks.get(random.nextInt(tracks.size()));
 
             try {
-                mp.setDataSource(t.getPath());
+                mp.setDataSource(currentTrack.getPath());
                 mp.prepare();
                 return true;
             } catch (IOException e) {

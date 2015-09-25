@@ -82,7 +82,11 @@ public class MainActivity extends Activity {
             mService = binder.getService();
             mBound = true;
 
-            mService.prepNextSong();
+            //TODO-note
+            //for dev purpose, auto-start MP upon bound
+            if (!mService.isPlaying()) {
+                mService.prepNextSong();
+            }
         }
 
         @Override
