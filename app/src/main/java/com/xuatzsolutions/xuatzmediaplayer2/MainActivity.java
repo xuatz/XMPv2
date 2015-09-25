@@ -2,9 +2,11 @@ package com.xuatzsolutions.xuatzmediaplayer2;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -12,6 +14,9 @@ import android.os.IBinder;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
 
 import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
@@ -22,6 +27,10 @@ import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
 
+
+    private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MainActivity";
+    public static final String INTENT_PLAY_PAUSE = INTENT_BASE_NAME + ".PLAY_PAUSE_CLICKED";
+    public static final String INTENT_NEXT = INTENT_BASE_NAME + ".NEXT_CLICKED";
     private final String TAG = "MainActivity";
 
     MediaPlayerService mService;
@@ -29,6 +38,12 @@ public class MainActivity extends Activity {
 
     Realm realm = null;
 
+    private BroadcastReceiver mReceiver;
+    private IntentFilter intentFilter;
+
+    private TextView tvCurrentTrackTitle;
+    private Button btnPlayPause;
+    private Button btnNext;
 
     public void initService() {
         Log.d(TAG, "initService()");
@@ -39,11 +54,70 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        realm = Realm.getInstance(MainActivity.this);
+
+        new PopulateSongLibrary().execute();
+
+        tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
+
+        mReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getAction().equals(MediaPlayerService.INTENT_MP_READY)) {
+                    Log.d(TAG, "onReceive() INTENT_MP_READY");
+                    //updateScreenAndRemoveNotiIfVisible();
+
+                    if (mService.getCurrentTrack() != null) {
+                        updateScreen();
+                    }
+                }
+            }
+        };
+
+        btnPlayPause = (Button) findViewById(R.id.btn_play_pause);
+        btnPlayPause.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendBroadcast(new Intent().setAction(INTENT_PLAY_PAUSE));
+            }
+        });
+
+        btnNext = (Button) findViewById(R.id.btn_next);
+        btnNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendBroadcast(new Intent().setAction(INTENT_NEXT));
+            }
+        });
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(MediaPlayerService.INTENT_MP_READY);
+    }
+
+    @Override
     protected void onStart() {
         Log.d(TAG, "onStart()");
         super.onStart();
 
         initService();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        this.registerReceiver(mReceiver, intentFilter);
+
+        Log.d(TAG, "mBound: " + mBound);
+        if (mBound) {
+            if (mService.isPlaying()) {
+                updateScreen();
+            }
+        }
     }
 
     @Override
@@ -59,9 +133,9 @@ public class MainActivity extends Activity {
         // Unbind from the service
         if (mBound) {
             unbindService(mConnection);
-            //mBound = false;
+            Log.d(TAG, "If mBound is true, there is a problem (xz, dun remove this really): " + mBound);
 
-            Log.d(TAG, "If mBound is false, something is wrong: " + mBound);
+            mBound = false; //TODO hopefully gt a better way to make it false den doing it manually
         }
     }
 
@@ -70,8 +144,9 @@ public class MainActivity extends Activity {
         super.onDestroy();
         Log.d(TAG, "onDestroy()");
 
-        //TODO until i have a stop button, we will kil the service onDestroy
-        stopService(new Intent(this, MediaPlayerService.class));
+        //stopService(new Intent(this, MediaPlayerService.class));
+
+        this.unregisterReceiver(mReceiver);
     }
 
     /** Defines callbacks for service binding, passed to bindService() */
@@ -86,25 +161,17 @@ public class MainActivity extends Activity {
             //for dev purpose, auto-start MP upon bound
             if (!mService.isPlaying()) {
                 mService.prepNextSong();
+            } else {
+                updateScreen();
             }
         }
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
+            Log.d(TAG, "onServiceDisconnected()");
             mBound = false;
         }
     };
-
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        realm = Realm.getInstance(MainActivity.this);
-
-        new PopulateSongLibrary().execute();
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -128,7 +195,11 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    private void updateScreen() {
+        Log.d(TAG, "updateScreen()");
 
+        tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
+    }
 
 
     private class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {

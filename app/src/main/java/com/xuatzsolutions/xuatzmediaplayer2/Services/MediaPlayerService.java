@@ -1,8 +1,10 @@
 package com.xuatzsolutions.xuatzmediaplayer2.Services;
 
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Binder;
@@ -11,6 +13,7 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 
+import com.xuatzsolutions.xuatzmediaplayer2.MainActivity;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 
@@ -27,6 +30,10 @@ import io.realm.RealmResults;
 public class MediaPlayerService extends Service {
 
     private final String TAG = "MediaPlayerService";
+
+    private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MediaPlayerService";
+    public static final String INTENT_MP_READY = INTENT_BASE_NAME + ".MP_READY";
+
     String android_id = null;
 
     Realm realm = null;
@@ -40,7 +47,10 @@ public class MediaPlayerService extends Service {
     private boolean wasPlaying = false;
 
     RealmResults<Track> tracks = null;
+
     private Track currentTrack = null;
+    private BroadcastReceiver mReceiver;
+    private IntentFilter intentFilter;
 
     @Override
     public void onCreate() {
@@ -108,6 +118,7 @@ public class MediaPlayerService extends Service {
         mp.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
+                sendBroadcast(new Intent().setAction(INTENT_MP_READY));
                 playPause();
             }
         });
@@ -140,6 +151,27 @@ public class MediaPlayerService extends Service {
         });
 
         mp.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+
+        mReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Log.d(TAG, "intent.getAction(): " + intent.getAction());
+                switch (intent.getAction()) {
+                    case MainActivity.INTENT_PLAY_PAUSE:
+                        playPause();
+                        break;
+                    case MainActivity.INTENT_NEXT:
+                        prepNextSong();
+                        break;
+                }
+            }
+        };
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(MainActivity.INTENT_PLAY_PAUSE);
+        intentFilter.addAction(MainActivity.INTENT_NEXT);
+
+        registerReceiver(mReceiver, intentFilter);
 
         prepNextSong();
     }
@@ -253,6 +285,8 @@ public class MediaPlayerService extends Service {
 //        cancelNotification();
 
         release();
+
+        unregisterReceiver(mReceiver);
     }
 
     private void release() {
@@ -284,5 +318,13 @@ public class MediaPlayerService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
+    }
+
+    public Track getCurrentTrack() {
+        return currentTrack;
+    }
+
+    public void setCurrentTrack(Track currentTrack) {
+        this.currentTrack = currentTrack;
     }
 }
