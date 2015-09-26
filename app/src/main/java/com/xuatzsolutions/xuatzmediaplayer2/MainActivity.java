@@ -17,6 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
@@ -31,6 +32,8 @@ public class MainActivity extends Activity {
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MainActivity";
     public static final String INTENT_PLAY_PAUSE = INTENT_BASE_NAME + ".PLAY_PAUSE_CLICKED";
     public static final String INTENT_NEXT = INTENT_BASE_NAME + ".NEXT_CLICKED";
+    public static final String INTENT_LIKED =INTENT_BASE_NAME + ".LIKED";
+    public static final String INTENT_DISLIKED = INTENT_BASE_NAME + ".DISLIKED";
     private final String TAG = "MainActivity";
 
     MediaPlayerService mService;
@@ -44,6 +47,8 @@ public class MainActivity extends Activity {
     private TextView tvCurrentTrackTitle;
     private Button btnPlayPause;
     private Button btnNext;
+    private Button btnLiked;
+    private Button btnDisliked;
 
     public void initService() {
         Log.d(TAG, "initService()");
@@ -94,8 +99,32 @@ public class MainActivity extends Activity {
             }
         });
 
+        btnLiked = (Button) findViewById(R.id.btn_like);
+        btnLiked.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showShortToast("This song rocks man!");
+                sendBroadcast(new Intent().setAction(INTENT_LIKED));
+            }
+        });
+
+        btnDisliked = (Button) findViewById(R.id.btn_dislike);
+        btnDisliked.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showShortToast("This song... cui...!");
+                sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
+            }
+        });
+
         intentFilter = new IntentFilter();
         intentFilter.addAction(MediaPlayerService.INTENT_MP_READY);
+    }
+
+    private void showShortToast(String s) {
+        CharSequence text = s;
+        Toast toast = Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT);
+        toast.show();
     }
 
     @Override

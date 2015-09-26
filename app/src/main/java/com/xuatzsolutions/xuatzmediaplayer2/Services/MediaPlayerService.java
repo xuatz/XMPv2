@@ -51,6 +51,8 @@ public class MediaPlayerService extends Service {
     private Track currentTrack = null;
     private BroadcastReceiver mReceiver;
     private IntentFilter intentFilter;
+    private long mStartTime = 0;
+    private int accumulatedPlaytimeForThisTrack = 0;
 
     @Override
     public void onCreate() {
@@ -119,6 +121,10 @@ public class MediaPlayerService extends Service {
             @Override
             public void onPrepared(MediaPlayer mp) {
                 sendBroadcast(new Intent().setAction(INTENT_MP_READY));
+
+                mStartTime = System.currentTimeMillis();
+                accumulatedPlaytimeForThisTrack = 0;
+
                 playPause();
             }
         });
@@ -128,23 +134,7 @@ public class MediaPlayerService extends Service {
             public void onCompletion(MediaPlayer mp) {
                 Log.d(TAG, "onCompletion is called! I want to monitor in the future to see if when i skip a song, will this method be played");
 
-                TrackStats stats = new TrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED, android_id, Calendar.getInstance().getTime());
-
-                realm.beginTransaction();
-                realm.copyToRealm(stats);
-                realm.commitTransaction();
-
-                RealmResults<TrackStats> res =
-                        realm.where(TrackStats.class)
-                                //.equalTo("title", currentTrack.getTitle())
-                                .findAll();
-
-                Log.d(TAG, "Kaypoh:res.size(): " + res.size());
-                for (TrackStats ts : res) {
-                    Log.d(TAG, "Kaypoh:ts.getTitle(): " + ts.getTitle());
-                    Log.d(TAG, "Kaypoh:ts.getType(): " + ts.getType());
-                    Log.d(TAG, "Kaypoh:ts.getCreatedAt(): " + ts.getCreatedAt());
-                }
+                createTrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED);
 
                 prepNextSong();
             }
@@ -156,13 +146,21 @@ public class MediaPlayerService extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 Log.d(TAG, "intent.getAction(): " + intent.getAction());
-                switch (intent.getAction()) {
-                    case MainActivity.INTENT_PLAY_PAUSE:
-                        playPause();
-                        break;
-                    case MainActivity.INTENT_NEXT:
-                        prepNextSong();
-                        break;
+            switch (intent.getAction()) {
+                case MainActivity.INTENT_PLAY_PAUSE:
+                    playPause();
+                    break;
+                case MainActivity.INTENT_NEXT:
+                    checkIfRegisterAsSkip();
+                    prepNextSong();
+                    break;
+                case MainActivity.INTENT_LIKED:
+                    createTrackStats(currentTrack.getTitle(), TrackStats.SONG_LIKED);
+                    break;
+                case MainActivity.INTENT_DISLIKED:
+                    createTrackStats(currentTrack.getTitle(), TrackStats.SONG_DISLIKED);
+                    prepNextSong();
+                    break;
                 }
             }
         };
@@ -170,10 +168,25 @@ public class MediaPlayerService extends Service {
         intentFilter = new IntentFilter();
         intentFilter.addAction(MainActivity.INTENT_PLAY_PAUSE);
         intentFilter.addAction(MainActivity.INTENT_NEXT);
+        intentFilter.addAction(MainActivity.INTENT_LIKED);
+        intentFilter.addAction(MainActivity.INTENT_DISLIKED);
 
         registerReceiver(mReceiver, intentFilter);
 
         prepNextSong();
+    }
+
+    private void checkIfRegisterAsSkip() {
+        long millis = System.currentTimeMillis() - mStartTime;
+        accumulatedPlaytimeForThisTrack += millis;
+
+        if (accumulatedPlaytimeForThisTrack > currentTrack.getDuration()/2) {
+            //dun consider as skip, just "next"
+        } else {
+            //its a skip, the guy dun like this song1
+
+            createTrackStats(currentTrack.getTitle(), TrackStats.SONG_SKIPPED);
+        }
     }
 
     public boolean isPlaying() {
@@ -227,13 +240,17 @@ public class MediaPlayerService extends Service {
                 Log.d(TAG, "playPause() 2");
                 wasPlaying = false;
                 mp.start();
+
+                mStartTime = System.currentTimeMillis();
             }
-            //sendBroadcast(new Intent(PLAY_MP));
             Log.d(TAG, "playPause() 3");
         } else {
             Log.d(TAG, "playPause() 4");
             wasPlaying = true;
             mp.pause();
+
+            long millis = System.currentTimeMillis() - mStartTime;
+            accumulatedPlaytimeForThisTrack += millis;
 
             if (audioFocus) {
                 am.abandonAudioFocus(mOnAudioFocusChangeListener);
@@ -302,6 +319,27 @@ public class MediaPlayerService extends Service {
         }
     }
 
+    private void createTrackStats(String trackTitle, int type) {
+        TrackStats stats = new TrackStats(trackTitle, type, android_id, Calendar.getInstance().getTime());
+
+        realm.beginTransaction();
+        realm.copyToRealm(stats);
+        realm.commitTransaction();
+
+        RealmResults<TrackStats> res =
+                realm.where(TrackStats.class)
+                        //.equalTo("title", currentTrack.getTitle())
+                        .findAll();
+
+        Log.d(TAG, "Kaypoh:res.size(): " + res.size());
+        for (TrackStats ts : res) {
+            Log.d(TAG, "Kaypoh:ts.getTitle(): " + ts.getTitle());
+            Log.d(TAG, "Kaypoh:ts.getType(): " + ts.getType());
+            Log.d(TAG, "Kaypoh:ts.getCreatedAt(): " + ts.getCreatedAt());
+        }
+
+    }
+
     // Binder given to clients
     private final IBinder mBinder = new LocalBinder();
 
@@ -319,6 +357,8 @@ public class MediaPlayerService extends Service {
     public IBinder onBind(Intent intent) {
         return mBinder;
     }
+
+
 
     public Track getCurrentTrack() {
         return currentTrack;

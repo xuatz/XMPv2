@@ -12,6 +12,8 @@ public class TrackStats extends RealmObject {
     public static final int SONG_COMPLETED = 1;
     public static final int SONG_SKIPPED = 2;
     public static final int SONG_SELECTED = 3;
+    public static final int SONG_LIKED = 4;
+    public static final int SONG_DISLIKED = 5;
 
     private String title;
     private int type;
