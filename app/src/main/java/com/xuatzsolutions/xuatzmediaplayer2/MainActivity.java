@@ -49,14 +49,7 @@ public class MainActivity extends Activity {
     private Button btnNext;
     private Button btnLiked;
     private Button btnDisliked;
-
-    public void initService() {
-        Log.d(TAG, "initService()");
-        //TODO do i really need to create a new 1 each time? May consider to make it a constant??
-        Intent intent = new Intent(this, MediaPlayerService.class);
-        startService(intent);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-    }
+    private ProgressDialog pdNewSession;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,14 +65,34 @@ public class MainActivity extends Activity {
         mReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (intent.getAction().equals(MediaPlayerService.INTENT_MP_READY)) {
-                    Log.d(TAG, "onReceive() INTENT_MP_READY");
-                    //updateScreenAndRemoveNotiIfVisible();
+                switch(intent.getAction()) {
+                    case MediaPlayerService.INTENT_MP_READY:
+                        Log.d(TAG, "onReceive() INTENT_MP_READY");
+                        //updateScreenAndRemoveNotiIfVisible();
 
-                    if (mService.getCurrentTrack() != null) {
-                        updateScreen();
-                    }
+                        if (mService.getCurrentTrack() != null) {
+                            updateScreen();
+                        }
+
+                        break;
+                    case MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING:
+                        Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATING :mytest");
+                        pdNewSession = new ProgressDialog(MainActivity.this);
+                        pdNewSession.setMessage("Generating Session Songs...");
+                        pdNewSession.setIndeterminate(false);
+                        pdNewSession.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+                        pdNewSession.setCancelable(false);
+                        pdNewSession.show();
+                        break;
+                    case MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED:
+                        Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATED :mytest");
+                        pdNewSession.dismiss();
+                        break;
                 }
+
+
+
+
             }
         };
 
@@ -119,12 +132,8 @@ public class MainActivity extends Activity {
 
         intentFilter = new IntentFilter();
         intentFilter.addAction(MediaPlayerService.INTENT_MP_READY);
-    }
-
-    private void showShortToast(String s) {
-        CharSequence text = s;
-        Toast toast = Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT);
-        toast.show();
+        intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING);
+        intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED);
     }
 
     @Override
@@ -162,9 +171,7 @@ public class MainActivity extends Activity {
         // Unbind from the service
         if (mBound) {
             unbindService(mConnection);
-            Log.d(TAG, "If mBound is true, there is a problem (xz, dun remove this really): " + mBound);
-
-            mBound = false; //TODO hopefully gt a better way to make it false den doing it manually
+            mBound = false; //this is necessary
         }
     }
 
@@ -230,8 +237,8 @@ public class MainActivity extends Activity {
         tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
     }
 
-
     private class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
+
 
         private ProgressDialog progressDialog;
 
@@ -268,7 +275,23 @@ public class MainActivity extends Activity {
             super.onPostExecute(result);
             if (isLibEmpty) {
                 progressDialog.dismiss();
+                mService.startSession();
             }
         }
+
+    }
+    public void initService() {
+        Log.d(TAG, "initService()");
+        Intent intent = new Intent(this, MediaPlayerService.class);
+        startService(intent);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+
+
+    private void showShortToast(String s) {
+        CharSequence text = s;
+        Toast toast = Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT);
+        toast.show();
     }
 }

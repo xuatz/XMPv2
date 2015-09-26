@@ -18,8 +18,10 @@ import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Random;
+import java.util.Collections;
+import java.util.List;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -30,9 +32,11 @@ import io.realm.RealmResults;
 public class MediaPlayerService extends Service {
 
     private final String TAG = "MediaPlayerService";
-
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MediaPlayerService";
+
     public static final String INTENT_MP_READY = INTENT_BASE_NAME + ".MP_READY";
+    public static final String INTENT_SESSION_TRACKS_GENERATING = INTENT_BASE_NAME + ".SESSION_TRACKS_GENERATING";
+    public static final String INTENT_SESSION_TRACKS_GENERATED = INTENT_BASE_NAME + ".SESSION_TRACKS_GENERATED";
 
     String android_id = null;
 
@@ -49,14 +53,21 @@ public class MediaPlayerService extends Service {
     RealmResults<Track> tracks = null;
 
     private Track currentTrack = null;
+    private List<Track> currentPlaylist = null;
+
     private BroadcastReceiver mReceiver;
     private IntentFilter intentFilter;
     private long mStartTime = 0;
     private int accumulatedPlaytimeForThisTrack = 0;
+    private int globalTrackNo;
+
+    private static final double PASSING_GRADE = 49;
 
     @Override
     public void onCreate() {
         super.onCreate();
+
+        currentPlaylist = new ArrayList<Track>();
 
         realm = Realm.getInstance(MediaPlayerService.this);
         tracks = realm.where(Track.class).findAll();
@@ -146,21 +157,24 @@ public class MediaPlayerService extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 Log.d(TAG, "intent.getAction(): " + intent.getAction());
-            switch (intent.getAction()) {
-                case MainActivity.INTENT_PLAY_PAUSE:
-                    playPause();
-                    break;
-                case MainActivity.INTENT_NEXT:
-                    checkIfRegisterAsSkip();
-                    prepNextSong();
-                    break;
-                case MainActivity.INTENT_LIKED:
-                    createTrackStats(currentTrack.getTitle(), TrackStats.SONG_LIKED);
-                    break;
-                case MainActivity.INTENT_DISLIKED:
-                    createTrackStats(currentTrack.getTitle(), TrackStats.SONG_DISLIKED);
-                    prepNextSong();
-                    break;
+                switch (intent.getAction()) {
+                    case MainActivity.INTENT_PLAY_PAUSE:
+                        playPause();
+                        break;
+                    case MainActivity.INTENT_NEXT:
+                        checkIfRegisterAsSkip();
+                        prepNextSong();
+                        break;
+                    case MainActivity.INTENT_LIKED:
+                        createTrackStats(currentTrack.getTitle(), TrackStats.SONG_LIKED);
+                        break;
+                    case MainActivity.INTENT_DISLIKED:
+                        createTrackStats(currentTrack.getTitle(), TrackStats.SONG_DISLIKED);
+                        prepNextSong();
+                        break;
+                    case INTENT_SESSION_TRACKS_GENERATED:
+                        prepNextSong();
+                        break;
                 }
             }
         };
@@ -170,9 +184,133 @@ public class MediaPlayerService extends Service {
         intentFilter.addAction(MainActivity.INTENT_NEXT);
         intentFilter.addAction(MainActivity.INTENT_LIKED);
         intentFilter.addAction(MainActivity.INTENT_DISLIKED);
+        //intentFilter.addAction(INTENT_SESSION_TRACKS_GENERATED);
 
         registerReceiver(mReceiver, intentFilter);
 
+        startSession();
+    }
+
+    private List<Track> generateNewTracks() {
+        Log.d(TAG, "generateNewTracks()");
+
+        List<Track> tempList = new ArrayList<Track>();
+        List<Track> tempTrackList = new ArrayList<Track>(realm.where(Track.class).findAll());
+
+        Log.d(TAG, "tempTrackList.isEmpty(): " + tempTrackList.isEmpty());
+        if (!tempTrackList.isEmpty()) {
+            int count= 0;
+
+            Collections.shuffle(tempTrackList);
+
+            for (Track t : tempTrackList) {
+//                try {
+//                    Thread.sleep(20);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+
+                Log.d(TAG, "generateNewTracks() iteration no.: " +count++ + ":mytest");
+                Log.d(TAG, "t.getTitle(): " + t.getTitle());
+
+                RealmResults<TrackStats> res =
+                        this.realm.where(TrackStats.class)
+                                .equalTo("createdBy", android_id)
+                                .equalTo("title", t.getTitle())
+                                .findAll();
+
+                Log.d(TAG, "res.size(): " + res.size());
+
+                //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
+                int completedCount = res.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
+                int skippedCount = res.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
+                int likedCount = res.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
+                int dislikedCount = res.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
+
+                Log.d(TAG, "completedCount: " + completedCount);
+                Log.d(TAG, "skippedCount: " + skippedCount);
+                Log.d(TAG, "likedCount: " + likedCount);
+                Log.d(TAG, "dislikedCount: " + dislikedCount);
+
+                /*
+                TODO need to make the ratio more representative of the respective counts
+                i.e.    if i completed the song once, it should only give like 0.6
+                        but if i completed the song 100 times, it should give like 0.9?
+                 */
+                int comMinusSkip = completedCount - skippedCount;
+                double cmsRatio = 0;
+                if (comMinusSkip > 0) {
+                    cmsRatio = 0.9;
+                } else {
+                    if (comMinusSkip == 0) {
+                        cmsRatio = 0.5;
+                    } else {
+                        cmsRatio = 0.1;
+                    }
+                }
+
+                /*
+                TODO similarly as above, this algo needs rework in future
+                 */
+                int likeMinusDislike = likedCount - dislikedCount;
+                double lmdRatio = 0;
+                if (likeMinusDislike > 0) {
+                    lmdRatio = 0.9;
+                } else {
+                    if (likeMinusDislike == 0) {
+                        lmdRatio = 0.5;
+                    } else {
+                        lmdRatio = 0.1;
+                    }
+                }
+
+                //XZ: it should add up to 100 in total
+                final double chanceContributionWeightage        = 50;
+                final double completedVsSkippedContributionWeightage     = 20;
+                final double likeDislikeContributionWeightage   = 30;
+
+                double chanceContribution               = chanceContributionWeightage * Math.random();
+                double completedVsSkippedContribution   = completedVsSkippedContributionWeightage * cmsRatio;
+                double likeDislikeContribution          = likeDislikeContributionWeightage * lmdRatio;
+
+                //double selectedContribution    = 20; //TODO *WIP*
+                //double freshnessContribution    = 20; //TODO *WIP*
+
+                double points = chanceContribution + completedVsSkippedContribution + likeDislikeContribution;
+
+
+                if (points > PASSING_GRADE) {
+                    tempList.add(t);
+                }
+
+                if (tempList.size() == 10) {
+                    break;
+                }
+            }
+        }
+
+        Log.d(TAG, "tempList.size(): " + tempList.size());
+        return tempList;
+    }
+
+
+
+    public void startSession() {
+        Log.d(TAG, "startSession()");
+
+        //TODO might wanna consider to fetch fresh tracks in future
+
+        currentPlaylist.clear();
+        globalTrackNo = 0;
+
+        /*
+        TODO it shld be an async task in future
+        refer to https://github.com/realm/realm-java/issues/1208
+         */
+        currentPlaylist.addAll(generateNewTracks());
+
+        //sendBroadcast(new Intent(INTENT_SESSION_TRACKS_GENERATING));
+        //sendBroadcast(new Intent().setAction(INTENT_SESSION_TRACKS_GENERATED));
         prepNextSong();
     }
 
@@ -200,19 +338,23 @@ public class MediaPlayerService extends Service {
     public boolean prepNextSong() {
         mp.reset();
 
-        if (tracks.size() > 0) {
-            Random random = new Random();
-
-            currentTrack = tracks.get(random.nextInt(tracks.size()));
+        if (currentPlaylist.size() > 0) {
+            currentTrack = currentPlaylist.get(globalTrackNo++);
 
             try {
                 mp.setDataSource(currentTrack.getPath());
                 mp.prepare();
-                return true;
             } catch (IOException e) {
                 e.printStackTrace();
                 return false;
             }
+
+            int i = Math.max(currentPlaylist.size() - 5, globalTrackNo);
+
+            if (currentPlaylist.size() - 5 <= globalTrackNo) {
+                currentPlaylist.addAll(generateNewTracks());
+            }
+            return true;
         } else {
             return false;
         }
@@ -268,11 +410,10 @@ public class MediaPlayerService extends Service {
         }
     }
 
-//    @Override
-//    public int onStartCommand(Intent intent, int flags, int startId) {
-//        //TODO try start sticky see how
-//        return START_STICKY;
-//    }
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_NOT_STICKY;
+    }
 
 
     @Override
