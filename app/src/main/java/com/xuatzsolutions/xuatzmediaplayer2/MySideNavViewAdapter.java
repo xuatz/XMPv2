@@ -8,56 +8,41 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 /**
- * Created by lowxu on 27/9/2015.
+ * Created by xuatz on 27/9/2015.
  */
 public class MySideNavViewAdapter extends RecyclerView.Adapter<MySideNavViewAdapter.ViewHolder> {
 
-    final static String TAG = "MySideNavViewAdapter";
 
     // Creating a ViewHolder which extends the RecyclerView View Holder
     // ViewHolder are used to to store the inflated views in order to recycle them
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        private final IMyViewHolderOnClickListener mListener;
-        // each data item is just a string in this case
+    public static class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+
+        public IMyViewHolderClicks mListener;
         public TextView mTextView;
-        public ViewHolder(TextView v, IMyViewHolderOnClickListener listener) {
+
+        public ViewHolder(View v, IMyViewHolderClicks iMyViewHolderClicks) {
             super(v);
-
-            mListener = listener;
-            mTextView = v;
-
-            mTextView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    Log.d(TAG, "test1:getLayoutPosition(): " + getLayoutPosition());
-                    Log.d(TAG, "test1:getAdapterPosition(): " + getAdapterPosition());
-
-                    Log.d(TAG, "test1:view.getId(): " + view.getId());
-
-
-//                    int position  =   getAdapterPosition();
-//
-//                    switch (view.getId()){
-//                        case R.id.sharedFile:
-//
-//
-//                            Log.w("", "Selected"+position);
-//
-//
-//                            break;
-//                    }
-//
-//                    mListener.myTest();
-                }
-            });
+            mTextView = (TextView) v;
+            mTextView.setOnClickListener(this);
         }
 
-        public interface IMyViewHolderOnClickListener {
-            void onPotato(View caller);
-            void onTomato(String callerImage);
-            void myTest(String text);
+        public interface IMyViewHolderClicks {
+            public void onPotato();
+        }
+
+        @Override
+        public void onClick(View view) {
+            Log.d(TAG, "test1:getLayoutPosition(): " + getLayoutPosition());
+            Log.d(TAG, "test1:getAdapterPosition(): " + getAdapterPosition());
+            Log.d(TAG, "test1:view.getId(): " + view.getId());
+
+            mListener.onPotato();
         }
     }
+
+    //======================
+
+    final static String TAG = "MySideNavViewAdapter";
 
     private String[] mDataset;
 
@@ -71,7 +56,13 @@ public class MySideNavViewAdapter extends RecyclerView.Adapter<MySideNavViewAdap
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(android.R.layout.simple_list_item_1, parent, false);
 
-        ViewHolder vh = new ViewHolder((TextView) v);
+        //ViewHolder vh = new ViewHolder((TextView) v);
+        ViewHolder vh = new ViewHolder(v, new ViewHolder.IMyViewHolderClicks() {
+            @Override
+            public void onPotato() {
+                
+            }
+        });
         return vh;
     }
 

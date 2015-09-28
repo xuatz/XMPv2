@@ -22,6 +22,8 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'io.realm:realm-android:0.82.2'
-    compile 'com.android.support:appcompat-v7:23.0.+'
-    compile 'com.android.support:recyclerview-v7:23.0.+'
+    compile 'com.android.support:appcompat-v7:23.0.1'
+    compile 'com.android.support:recyclerview-v7:23.0.1'
+    compile 'com.android.support:design:23.0.1'
+    compile 'com.android.support:percent:23.0.1'
 }
