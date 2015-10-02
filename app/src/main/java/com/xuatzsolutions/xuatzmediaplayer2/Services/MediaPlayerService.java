@@ -145,9 +145,10 @@ public class MediaPlayerService extends Service {
             public void onCompletion(MediaPlayer mp) {
                 Log.d(TAG, "onCompletion is called! I want to monitor in the future to see if when i skip a song, will this method be played");
 
-                createTrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED);
-
-                prepNextSong();
+                if(currentTrack != null) {
+                    createTrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED);
+                    prepNextSong();
+                }
             }
         });
 
@@ -166,10 +167,14 @@ public class MediaPlayerService extends Service {
                         prepNextSong();
                         break;
                     case MainActivity.INTENT_LIKED:
-                        createTrackStats(currentTrack.getTitle(), TrackStats.SONG_LIKED);
+                        if (currentTrack != null) {
+                            createTrackStats(currentTrack.getTitle(), TrackStats.SONG_LIKED);
+                        }
                         break;
                     case MainActivity.INTENT_DISLIKED:
-                        createTrackStats(currentTrack.getTitle(), TrackStats.SONG_DISLIKED);
+                        if (currentTrack != null) {
+                            createTrackStats(currentTrack.getTitle(), TrackStats.SONG_DISLIKED);
+                        }
                         prepNextSong();
                         break;
                     case INTENT_SESSION_TRACKS_GENERATED:
@@ -315,15 +320,17 @@ public class MediaPlayerService extends Service {
     }
 
     private void checkIfRegisterAsSkip() {
-        long millis = System.currentTimeMillis() - mStartTime;
-        accumulatedPlaytimeForThisTrack += millis;
+        if (currentTrack != null) {
+            long millis = System.currentTimeMillis() - mStartTime;
+            accumulatedPlaytimeForThisTrack += millis;
 
-        if (accumulatedPlaytimeForThisTrack > currentTrack.getDuration()/2) {
-            //dun consider as skip, just "next"
-        } else {
-            //its a skip, the guy dun like this song1
+            if (accumulatedPlaytimeForThisTrack > currentTrack.getDuration()/2) {
+                //dun consider as skip, just "next"
+            } else {
+                //its a skip, the guy dun like this song1
 
-            createTrackStats(currentTrack.getTitle(), TrackStats.SONG_SKIPPED);
+                createTrackStats(currentTrack.getTitle(), TrackStats.SONG_SKIPPED);
+            }
         }
     }
 

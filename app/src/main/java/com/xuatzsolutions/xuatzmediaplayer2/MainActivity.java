@@ -58,8 +58,6 @@ public class MainActivity extends Activity {
 
         realm = Realm.getInstance(MainActivity.this);
 
-        new PopulateSongLibrary().execute();
-
         tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
 
         mReceiver = new BroadcastReceiver() {
@@ -89,10 +87,6 @@ public class MainActivity extends Activity {
                         pdNewSession.dismiss();
                         break;
                 }
-
-
-
-
             }
         };
 
@@ -116,8 +110,10 @@ public class MainActivity extends Activity {
         btnLiked.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showShortToast("This song rocks man!");
-                sendBroadcast(new Intent().setAction(INTENT_LIKED));
+                if(mService.getCurrentTrack() != null) {
+                    showShortToast("This song rocks man!");
+                    sendBroadcast(new Intent().setAction(INTENT_LIKED));
+                }
             }
         });
 
@@ -125,8 +121,10 @@ public class MainActivity extends Activity {
         btnDisliked.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showShortToast("This song... cui...!");
-                sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
+                if(mService.getCurrentTrack() != null) {
+                    showShortToast("This song... cui...!");
+                    sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
+                }
             }
         });
 
@@ -142,6 +140,8 @@ public class MainActivity extends Activity {
         super.onStart();
 
         initService();
+
+        new PopulateSongLibrary().execute();
     }
 
     @Override
@@ -189,6 +189,7 @@ public class MainActivity extends Activity {
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
+            Log.d(TAG, "onServiceConnected() start");
             MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
             mService = binder.getService();
             mBound = true;
@@ -275,7 +276,10 @@ public class MainActivity extends Activity {
             super.onPostExecute(result);
             if (isLibEmpty) {
                 progressDialog.dismiss();
-                mService.startSession();
+
+                if(mBound) {
+                    mService.startSession();
+                }
             }
         }
 
