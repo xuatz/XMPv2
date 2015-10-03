@@ -1,5 +1,8 @@
 package com.xuatzsolutions.xuatzmediaplayer2.Services;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -31,12 +34,18 @@ import io.realm.RealmResults;
  */
 public class MediaPlayerService extends Service {
 
+
     private final String TAG = "MediaPlayerService";
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MediaPlayerService";
+
 
     public static final String INTENT_MP_READY = INTENT_BASE_NAME + ".MP_READY";
     public static final String INTENT_SESSION_TRACKS_GENERATING = INTENT_BASE_NAME + ".SESSION_TRACKS_GENERATING";
     public static final String INTENT_SESSION_TRACKS_GENERATED = INTENT_BASE_NAME + ".SESSION_TRACKS_GENERATED";
+
+    public static final String INTENT_DISMISS_NOTIFICATION = INTENT_BASE_NAME + ".DISMISS_NOTIFICATION";
+
+
 
     String android_id = null;
 
@@ -61,6 +70,47 @@ public class MediaPlayerService extends Service {
     private int globalTrackNo;
 
     private static final double PASSING_GRADE = 49;
+
+    //====================
+
+    private NotificationManager mNotificationManager;
+    private Notification.Builder mNotificationBuilder;
+    private Notification mNotification;
+    private static final int NOTIFICATION_ID = 1;
+
+    private void initNotification() {
+        String ns = Context.NOTIFICATION_SERVICE;
+        mNotificationManager = (NotificationManager) getSystemService(ns);
+
+        // long when = System.currentTimeMillis();
+
+        Intent notificationIntent = new Intent(this,MainActivity.class);
+
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Intent dismissIntent = new Intent(INTENT_DISMISS_NOTIFICATION);
+        PendingIntent dismissPendingIntent = PendingIntent.getBroadcast(this, 0, dismissIntent, 0);
+
+        Intent playPauseIntent = new Intent(MainActivity.INTENT_PLAY_PAUSE);
+        PendingIntent playPausePendingIntent = PendingIntent.getBroadcast(this, 0, playPauseIntent, 0);
+
+        Intent nextIntent = new Intent(MainActivity.INTENT_NEXT);
+        PendingIntent nextPendingIntent = PendingIntent.getBroadcast(this, 0, nextIntent, 0);
+
+        mNotificationBuilder = new Notification.Builder(this)
+                .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                .setContentTitle("My notification")
+                .setContentText("Hello World!").setContentIntent(contentIntent)
+                .addAction(android.R.drawable.ic_media_play, "PlayPause", playPausePendingIntent)
+                .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
+                .addAction(0, "Dismiss", dismissPendingIntent);
+
+        mNotification = mNotificationBuilder.build();
+        mNotification.flags = Notification.FLAG_ONGOING_EVENT;
+
+        mNotificationManager.notify(NOTIFICATION_ID, mNotification);
+
+    }
 
     @Override
     public void onCreate() {
@@ -130,7 +180,7 @@ public class MediaPlayerService extends Service {
             public void onCompletion(MediaPlayer mp) {
                 Log.d(TAG, "onCompletion is called! I want to monitor in the future to see if when i skip a song, will this method be played");
 
-                if(currentTrack != null) {
+                if (currentTrack != null) {
                     createTrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED);
                     prepNextSong();
                 }
@@ -165,6 +215,9 @@ public class MediaPlayerService extends Service {
                     case INTENT_SESSION_TRACKS_GENERATED:
                         prepNextSong();
                         break;
+                    case INTENT_DISMISS_NOTIFICATION:
+                        stopMediaPlayerService();
+                        break;
                 }
             }
         };
@@ -174,11 +227,20 @@ public class MediaPlayerService extends Service {
         intentFilter.addAction(MainActivity.INTENT_NEXT);
         intentFilter.addAction(MainActivity.INTENT_LIKED);
         intentFilter.addAction(MainActivity.INTENT_DISLIKED);
+        intentFilter.addAction(INTENT_DISMISS_NOTIFICATION);
+
         //intentFilter.addAction(INTENT_SESSION_TRACKS_GENERATED);
 
         registerReceiver(mReceiver, intentFilter);
 
         startSession();
+        initNotification();
+
+
+    }
+
+    private void stopMediaPlayerService() {
+        this.stopService(new Intent(this, MediaPlayerService.class));
     }
 
     private List<Track> generateNewTracks() {
@@ -411,8 +473,11 @@ public class MediaPlayerService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-
         Log.d(TAG, "onDestroy()");
+
+        //cancelNotification();
+        mNotificationManager.cancel(NOTIFICATION_ID);
+        unregisterReceiver(mReceiver);
 
         //am.unregisterMediaButtonEventReceiver(mRemoteControlResponder);
 
@@ -429,14 +494,7 @@ public class MediaPlayerService extends Service {
             audioFocus = false;
         }
 
-//        stopService(dataCollectionServiceIntent);
-//
-//        unregisterReceiver(receiver);
-//        cancelNotification();
-
         release();
-
-        unregisterReceiver(mReceiver);
     }
 
     private void release() {
