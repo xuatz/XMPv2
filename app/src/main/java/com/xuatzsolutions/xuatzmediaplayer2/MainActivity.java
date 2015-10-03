@@ -28,7 +28,6 @@ import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
 
-
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MainActivity";
     public static final String INTENT_PLAY_PAUSE = INTENT_BASE_NAME + ".PLAY_PAUSE_CLICKED";
     public static final String INTENT_NEXT = INTENT_BASE_NAME + ".NEXT_CLICKED";
@@ -66,9 +65,9 @@ public class MainActivity extends Activity {
                 switch(intent.getAction()) {
                     case MediaPlayerService.INTENT_MP_READY:
                         Log.d(TAG, "onReceive() INTENT_MP_READY");
-                        //updateScreenAndRemoveNotiIfVisible();
 
                         if (mService.getCurrentTrack() != null) {
+                            //updateScreenAndRemoveNotiIfVisible();
                             updateScreen();
                         }
 

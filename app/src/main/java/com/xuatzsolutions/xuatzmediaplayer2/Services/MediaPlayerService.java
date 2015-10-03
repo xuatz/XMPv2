@@ -47,7 +47,6 @@ public class MediaPlayerService extends Service {
     AudioManager.OnAudioFocusChangeListener mOnAudioFocusChangeListener = null;
 
     boolean audioFocus = false;
-    private int originalVolume = 0;
     private boolean wasPlaying = false;
 
     RealmResults<Track> tracks = null;
@@ -81,17 +80,7 @@ public class MediaPlayerService extends Service {
                     case AudioManager.AUDIOFOCUS_GAIN:
                         audioFocus = true;
 
-                        //==================
-                        int sb2value = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-
-                        Log.d(TAG, "maxVol: " + sb2value);
-                        Log.d(TAG, "originalVol: " + originalVolume);
-
-                        if (originalVolume<am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)) {
-                            sb2value = originalVolume;
-                        }
-                        am.setStreamVolume(AudioManager.STREAM_MUSIC, sb2value, 0);
-                        //===================
+                        mp.setVolume(1f, 1f);
 
                         if (wasPlaying) {
                             playPause();
@@ -102,23 +91,19 @@ public class MediaPlayerService extends Service {
                         wasPlaying = false;
 
                         if(mp.isPlaying()) {
-                            originalVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
                             mp.stop();
-
                             am.abandonAudioFocus(mOnAudioFocusChangeListener);
                         }
                         break;
                     case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
                         audioFocus = false;
                         if(mp.isPlaying()) {
-                            originalVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
                             playPause();
                         }
                         break;
                     case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                         if(mp.isPlaying()) {
-                            originalVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
-                            am.setStreamVolume(AudioManager.STREAM_MUSIC, (int)(am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)*0.1), 0);
+                            mp.setVolume(0.2f, 0.2f);
                         }
                         break;
                 }
