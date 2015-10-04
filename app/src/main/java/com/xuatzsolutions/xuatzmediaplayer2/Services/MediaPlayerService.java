@@ -77,39 +77,50 @@ public class MediaPlayerService extends Service {
     private Notification.Builder mNotificationBuilder;
     private Notification mNotification;
     private static final int NOTIFICATION_ID = 1;
+    
+    private PendingIntent activityIntent;
+    private PendingIntent dismissPendingIntent;
+    private PendingIntent playPausePendingIntent;
+    private PendingIntent nextPendingIntent;
 
     private void initNotification() {
         String ns = Context.NOTIFICATION_SERVICE;
         mNotificationManager = (NotificationManager) getSystemService(ns);
 
-        // long when = System.currentTimeMillis();
+        Intent notificationIntent = new Intent(getApplicationContext(),MainActivity.class);
 
-        Intent notificationIntent = new Intent(this,MainActivity.class);
-
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT), PendingIntent.FLAG_UPDATE_CURRENT);
+        activityIntent = PendingIntent.getActivity(this, 0, notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT);
 
         Intent dismissIntent = new Intent(INTENT_DISMISS_NOTIFICATION);
-        PendingIntent dismissPendingIntent = PendingIntent.getBroadcast(this, 0, dismissIntent, 0);
+        dismissPendingIntent = PendingIntent.getBroadcast(this, 0, dismissIntent, 0);
 
         Intent playPauseIntent = new Intent(MainActivity.INTENT_PLAY_PAUSE);
-        PendingIntent playPausePendingIntent = PendingIntent.getBroadcast(this, 0, playPauseIntent, 0);
+        playPausePendingIntent = PendingIntent.getBroadcast(this, 0, playPauseIntent, 0);
 
         Intent nextIntent = new Intent(MainActivity.INTENT_NEXT);
-        PendingIntent nextPendingIntent = PendingIntent.getBroadcast(this, 0, nextIntent, 0);
+        nextPendingIntent = PendingIntent.getBroadcast(this, 0, nextIntent, 0);
+    }
 
-        mNotificationBuilder = new Notification.Builder(this)
-                .setSmallIcon(android.R.drawable.sym_def_app_icon)
-                .setContentTitle("My notification")
-                .setContentText("Hello World!").setContentIntent(contentIntent)
-                .addAction(android.R.drawable.ic_media_play, "PlayPause", playPausePendingIntent)
-                .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
-                .addAction(0, "Dismiss", dismissPendingIntent);
+    public void showNotification() {
+        if (currentTrack != null) {
+            mNotificationBuilder = new Notification.Builder(this)
+                    .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                    .setContentTitle(currentTrack.getTitle())
+                    .setContentText(currentTrack.getArtist())
+                    .setContentIntent(activityIntent)
+                    .addAction(android.R.drawable.ic_media_play, "PlayPause", playPausePendingIntent)
+                    .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
+                    .addAction(0, "Dismiss", dismissPendingIntent);
 
-        mNotification = mNotificationBuilder.build();
-        mNotification.flags = Notification.FLAG_ONGOING_EVENT;
+            mNotification = mNotificationBuilder.build();
+            mNotification.flags = Notification.FLAG_ONGOING_EVENT;
 
-        mNotificationManager.notify(NOTIFICATION_ID, mNotification);
+            mNotificationManager.notify(NOTIFICATION_ID, mNotification);
+        }
+    }
 
+    public void cancelNotification() {
+        mNotificationManager.cancel(NOTIFICATION_ID);
     }
 
     @Override
@@ -233,10 +244,9 @@ public class MediaPlayerService extends Service {
 
         registerReceiver(mReceiver, intentFilter);
 
-        startSession();
         initNotification();
 
-
+        startSession();
     }
 
     private void stopMediaPlayerService() {
@@ -364,6 +374,8 @@ public class MediaPlayerService extends Service {
         //sendBroadcast(new Intent(INTENT_SESSION_TRACKS_GENERATING));
         //sendBroadcast(new Intent().setAction(INTENT_SESSION_TRACKS_GENERATED));
         prepNextSong();
+
+        showNotification();
     }
 
     private void checkIfRegisterAsSkip() {
@@ -475,8 +487,7 @@ public class MediaPlayerService extends Service {
         super.onDestroy();
         Log.d(TAG, "onDestroy()");
 
-        //cancelNotification();
-        mNotificationManager.cancel(NOTIFICATION_ID);
+        cancelNotification();
         unregisterReceiver(mReceiver);
 
         //am.unregisterMediaButtonEventReceiver(mRemoteControlResponder);
@@ -516,19 +527,6 @@ public class MediaPlayerService extends Service {
         realm.beginTransaction();
         realm.copyToRealm(stats);
         realm.commitTransaction();
-
-        RealmResults<TrackStats> res =
-                realm.where(TrackStats.class)
-                        //.equalTo("title", currentTrack.getTitle())
-                        .findAll();
-
-        Log.d(TAG, "Kaypoh:res.size(): " + res.size());
-        for (TrackStats ts : res) {
-            Log.d(TAG, "Kaypoh:ts.getTitle(): " + ts.getTitle());
-            Log.d(TAG, "Kaypoh:ts.getType(): " + ts.getType());
-            Log.d(TAG, "Kaypoh:ts.getCreatedAt(): " + ts.getCreatedAt());
-        }
-
     }
 
     // Binder given to clients

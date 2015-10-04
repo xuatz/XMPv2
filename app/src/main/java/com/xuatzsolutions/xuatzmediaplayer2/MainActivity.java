@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 import com.xuatzsolutions.xuatzmediaplayer2.Services.MediaPlayerService;
 
 import io.realm.Realm;
@@ -37,6 +38,7 @@ public class MainActivity extends Activity {
 
     MediaPlayerService mService;
     boolean mBound = false;
+    boolean isActivityVisible = false;
 
     Realm realm = null;
 
@@ -44,6 +46,13 @@ public class MainActivity extends Activity {
     private IntentFilter intentFilter;
 
     private TextView tvCurrentTrackTitle;
+    private TextView tvCurrentTrackComCount;
+    private TextView tvCurrentTrackSkipCount;
+    private TextView tvCurrentTrackSelectCount;
+    private TextView tvCurrentTrackLikeCount;
+    private TextView tvCurrentTrackDislikeCount;
+
+
     private Button btnPlayPause;
     private Button btnNext;
     private Button btnLiked;
@@ -58,6 +67,11 @@ public class MainActivity extends Activity {
         realm = Realm.getInstance(MainActivity.this);
 
         tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
+        tvCurrentTrackComCount = (TextView) findViewById(R.id.tvCurrentTrackComCount);
+        tvCurrentTrackSkipCount = (TextView) findViewById(R.id.tvCurrentTrackSkipCount);
+        //tvCurrentTrackSelectCount = (TextView) findViewById(R.id.tvCurrentTrackSelectCount);
+        tvCurrentTrackLikeCount = (TextView) findViewById(R.id.tvCurrentTrackLikeCount);
+        tvCurrentTrackDislikeCount = (TextView) findViewById(R.id.tvCurrentTrackDislikeCount);
 
         mReceiver = new BroadcastReceiver() {
             @Override
@@ -67,8 +81,7 @@ public class MainActivity extends Activity {
                         Log.d(TAG, "onReceive() INTENT_MP_READY");
 
                         if (mService.getCurrentTrack() != null) {
-                            //updateScreenAndRemoveNotiIfVisible();
-                            updateScreen();
+                            updateScreenAndNotification();
                         }
 
                         break;
@@ -139,7 +152,6 @@ public class MainActivity extends Activity {
         super.onStart();
 
         initService();
-
         new PopulateSongLibrary().execute();
     }
 
@@ -147,12 +159,14 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
 
+        isActivityVisible = true;
+
         this.registerReceiver(mReceiver, intentFilter);
 
         Log.d(TAG, "mBound: " + mBound);
         if (mBound) {
             if (mService.isPlaying()) {
-                updateScreen();
+                updateScreenAndNotification();
             }
         }
     }
@@ -160,6 +174,64 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        isActivityVisible = false;
+        updateScreenAndNotification();
+    }
+
+    private void updateScreenAndNotification() {
+        Log.d(TAG, "updateScreenAndNotification()");
+
+        if (mService != null) {
+            if (mService.isPlaying()) {
+                if (isActivityVisible) {
+                    mService.cancelNotification();
+                } else {
+                    mService.showNotification();
+                }
+            }
+
+            if (mService.getCurrentTrack() != null) {
+
+
+                RealmResults<TrackStats> res =
+                        realm.where(TrackStats.class)
+                                .equalTo("title", mService.getCurrentTrack().getTitle())
+                                .findAll();
+
+                Log.d(TAG, "Kaypoh:res.size(): " + res.size());
+
+                int completed = 0, skipped = 0, selected = 0, liked= 0, disliked = 0;
+
+                for (TrackStats ts : res) {
+                    switch (ts.getType()) {
+                        case TrackStats.SONG_COMPLETED:
+                            completed++;
+                            break;
+                        case TrackStats.SONG_SKIPPED:
+                            skipped++;
+                            break;
+                        case TrackStats.SONG_SELECTED:
+                            selected++;
+                            break;
+                        case TrackStats.SONG_LIKED:
+                            liked++;
+                            break;
+                        case TrackStats.SONG_DISLIKED:
+                            disliked++;
+                            break;
+                    }
+                }
+
+                tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
+
+                tvCurrentTrackComCount.setText(""+completed);
+                tvCurrentTrackSkipCount.setText(""+skipped);
+                //tvCurrentTrackSelectCount.setText(selected);
+                tvCurrentTrackLikeCount.setText(""+liked);
+                tvCurrentTrackDislikeCount.setText(""+disliked);
+
+            }
+        }
     }
 
     @Override
@@ -198,7 +270,7 @@ public class MainActivity extends Activity {
             if (!mService.isPlaying()) {
                 mService.prepNextSong();
             } else {
-                updateScreen();
+                updateScreenAndNotification();
             }
         }
 
@@ -229,12 +301,6 @@ public class MainActivity extends Activity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    private void updateScreen() {
-        Log.d(TAG, "updateScreen()");
-
-        tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
     }
 
     private class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
