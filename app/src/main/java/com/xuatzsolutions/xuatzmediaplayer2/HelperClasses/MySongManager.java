@@ -6,6 +6,8 @@ import android.database.Cursor;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import com.xuatzsolutions.xuatzmediaplayer2.MainActivity;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 
 import io.realm.Realm;
@@ -34,7 +36,7 @@ public class MySongManager {
     public static void updateLibrary(Context context) {
         Log.d(TAG, "updateLibrary() start");
 
-        Realm realm = Realm.getInstance(context);
+        Realm realm = Realm.getInstance(Migration.getConfig(context));
 
         //songs = new HashMap<String, Track>();
 

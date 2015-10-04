@@ -17,6 +17,7 @@ import android.provider.Settings;
 import android.util.Log;
 
 import com.xuatzsolutions.xuatzmediaplayer2.MainActivity;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 
@@ -129,7 +130,7 @@ public class MediaPlayerService extends Service {
 
         currentPlaylist = new ArrayList<Track>();
 
-        realm = Realm.getInstance(MediaPlayerService.this);
+        realm = Realm.getInstance(Migration.getConfig(this));
         tracks = realm.where(Track.class).findAll();
 
         android_id = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -266,33 +267,18 @@ public class MediaPlayerService extends Service {
             Collections.shuffle(tempTrackList);
 
             for (Track t : tempTrackList) {
-//                try {
-//                    Thread.sleep(20);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-
-                Log.d(TAG, "generateNewTracks() iteration no.: " +count++ + ":mytest");
                 Log.d(TAG, "t.getTitle(): " + t.getTitle());
 
-                RealmResults<TrackStats> res =
-                        this.realm.where(TrackStats.class)
-                                .equalTo("createdBy", android_id)
-                                .equalTo("title", t.getTitle())
-                                .findAll();
+//                int completedCount = res.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
+//                int skippedCount = res.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
+//                int likedCount = res.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
+//                int dislikedCount = res.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
 
-                Log.d(TAG, "res.size(): " + res.size());
-
+                int completedCount = t.getCompletedCount();
+                int skippedCount = t.getSkippedCount();
                 //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
-                int completedCount = res.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
-                int skippedCount = res.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
-                int likedCount = res.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
-                int dislikedCount = res.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
-
-                Log.d(TAG, "completedCount: " + completedCount);
-                Log.d(TAG, "skippedCount: " + skippedCount);
-                Log.d(TAG, "likedCount: " + likedCount);
-                Log.d(TAG, "dislikedCount: " + dislikedCount);
+                int likedCount = t.getLikedCount();
+                int dislikedCount = t.getDislikedCount();
 
                 /*
                 TODO need to make the ratio more representative of the respective counts
@@ -376,6 +362,15 @@ public class MediaPlayerService extends Service {
         prepNextSong();
 
         showNotification();
+    }
+
+    public void underratedSession() {
+        Log.d(TAG, "generateNewTracks()");
+
+        currentPlaylist.clear();
+        globalTrackNo = 0;
+
+
     }
 
     private void checkIfRegisterAsSkip() {

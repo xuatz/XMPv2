@@ -20,11 +20,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 import com.xuatzsolutions.xuatzmediaplayer2.Services.MediaPlayerService;
 
+import java.util.Calendar;
+
+import hirondelle.date4j.DateTime;
 import io.realm.Realm;
+import io.realm.RealmConfiguration;
 import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
@@ -48,10 +53,8 @@ public class MainActivity extends Activity {
     private TextView tvCurrentTrackTitle;
     private TextView tvCurrentTrackComCount;
     private TextView tvCurrentTrackSkipCount;
-    private TextView tvCurrentTrackSelectCount;
     private TextView tvCurrentTrackLikeCount;
     private TextView tvCurrentTrackDislikeCount;
-
 
     private Button btnPlayPause;
     private Button btnNext;
@@ -64,7 +67,9 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        realm = Realm.getInstance(MainActivity.this);
+        realm = Realm.getInstance(Migration.getConfig(this)); // Automatically run migration if needed
+
+        //=====================================
 
         tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
         tvCurrentTrackComCount = (TextView) findViewById(R.id.tvCurrentTrackComCount);
@@ -295,16 +300,26 @@ public class MainActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+
+        switch (id) {
+            case R.id.action_settings:
+                //noinspection SimplifiableIfStatement
+                return true;
+            case R.id.action_general:
+                mService.startSession();
+                return true;
+            case R.id.action_newly_added_songs:
+                return true;
+            case R.id.action_underrated:
+                return true;
+            case R.id.action_trash_tier:
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-    private class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
-
+    public class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
 
         private ProgressDialog progressDialog;
 
@@ -316,6 +331,48 @@ public class MainActivity extends Activity {
 
             RealmResults<Track> res = realm.where(Track.class).findAll();
 
+            if (!res.isEmpty()) {
+                boolean rebuildStats;
+
+                if (res.first().getStatsUpdatedAt() == null || res.first().getStatsUpdatedAt().isEmpty()) {
+                    rebuildStats = true;
+                } else {
+                    DateTime now = DateTime.now(Calendar.getInstance().getTimeZone());
+                    DateTime lastUpdated = new DateTime(res.first().getStatsUpdatedAt());
+
+                    rebuildStats = now.numSecondsFrom(lastUpdated) > 8000;
+                }
+
+                if (rebuildStats) {
+                    for(int x = 0; x<res.size(); x++) {
+                        Track t = res.get(x);
+
+                        RealmResults<TrackStats> statsRes =
+                                realm.where(TrackStats.class)
+                                        .equalTo("title", t.getTitle())
+                                        .findAll();
+
+                        if (!statsRes.isEmpty()) {
+                            //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
+                            int completedCount = statsRes.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
+                            int skippedCount = statsRes.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
+                            int likedCount = statsRes.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
+                            int dislikedCount = statsRes.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
+
+                            realm.beginTransaction();
+
+                            t.setCompletedCount(completedCount);
+                            t.setSkippedCount(skippedCount);
+                            t.setLikedCount(likedCount);
+                            t.setDislikedCount(dislikedCount);
+
+                            t.setStatsUpdatedAt(DateTime.now(Calendar.getInstance().getTimeZone()).toString());
+
+                            realm.commitTransaction();
+                        }
+                    }
+                }
+            }
             if (res.size() == 0) {
                 isLibEmpty = true;
 

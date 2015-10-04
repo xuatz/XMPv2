@@ -1,7 +1,10 @@
 package com.xuatzsolutions.xuatzmediaplayer2.Models;
 
+import java.util.Date;
+
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
+import io.realm.internal.ColumnType;
 
 /**
  * Created by xuatz on 24/9/2015.
@@ -26,6 +29,65 @@ public class Track extends RealmObject {
 
     private String album;
     private String albumId;
+
+    //==============
+    //v1-start
+
+    private int completedCount;
+    private int skippedCount;
+    private int selectedCount;
+    private int likedCount;
+    private int dislikedCount;
+
+    private String statsUpdatedAt;
+
+    public String getStatsUpdatedAt() {
+        return statsUpdatedAt;
+    }
+
+    public void setStatsUpdatedAt(String statsUpdatedAt) {
+        this.statsUpdatedAt = statsUpdatedAt;
+    }
+
+    public int getCompletedCount() {
+        return completedCount;
+    }
+
+    public void setCompletedCount(int completedCount) {
+        this.completedCount = completedCount;
+    }
+
+    public int getSkippedCount() {
+        return skippedCount;
+    }
+
+    public void setSkippedCount(int skippedCount) {
+        this.skippedCount = skippedCount;
+    }
+
+    public int getSelectedCount() {
+        return selectedCount;
+    }
+
+    public void setSelectedCount(int selectedCount) {
+        this.selectedCount = selectedCount;
+    }
+
+    public int getLikedCount() {
+        return likedCount;
+    }
+
+    public void setLikedCount(int likedCount) {
+        this.likedCount = likedCount;
+    }
+
+    public int getDislikedCount() {
+        return dislikedCount;
+    }
+
+    public void setDislikedCount(int dislikedCount) {
+        this.dislikedCount = dislikedCount;
+    }
 
     public String getAlbumId() {
         return albumId;
