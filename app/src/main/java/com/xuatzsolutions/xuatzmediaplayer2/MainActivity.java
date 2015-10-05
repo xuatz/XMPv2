@@ -378,12 +378,13 @@ public class MainActivity extends Activity {
         @Override
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
+            if (isLibEmpty) {
+                progressDialog.dismiss();
+                isLibEmpty = false;
+            }
+
             if(mBound) {
-                if (isLibEmpty) {
-                    mService.startSession(MediaPlayerService.SESSION_TYPE_GENERAL);
-                    progressDialog.dismiss();
-                    isLibEmpty = false;
-                }
+                mService.startSession(MediaPlayerService.SESSION_TYPE_GENERAL);
             }
         }
     }
