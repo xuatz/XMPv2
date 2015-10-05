@@ -35,6 +35,10 @@ import io.realm.RealmResults;
  */
 public class MediaPlayerService extends Service {
 
+    public static final int SESSION_TYPE_GENERAL = 1;
+    public static final int SESSION_TYPE_NEW = 2;
+    public static final int SESSION_TYPE_UNDERRATED = 3;
+    public static final int SESSION_TYPE_TRASH = 4;
 
     private final String TAG = "MediaPlayerService";
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MediaPlayerService";
@@ -46,7 +50,8 @@ public class MediaPlayerService extends Service {
 
     public static final String INTENT_DISMISS_NOTIFICATION = INTENT_BASE_NAME + ".DISMISS_NOTIFICATION";
 
-
+    public static final String INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION = INTENT_BASE_NAME + ".NOT_ENOUGH_DATA";
+    public static final String INTENT_THERE_IS_NO_SONGS = INTENT_BASE_NAME + ".NO_SONGS";
 
     String android_id = null;
 
@@ -70,6 +75,9 @@ public class MediaPlayerService extends Service {
     private int accumulatedPlaytimeForThisTrack = 0;
     private int globalTrackNo;
 
+
+    private int sessionType = 1;
+
     private static final double PASSING_GRADE = 49;
 
     //====================
@@ -78,7 +86,7 @@ public class MediaPlayerService extends Service {
     private Notification.Builder mNotificationBuilder;
     private Notification mNotification;
     private static final int NOTIFICATION_ID = 1;
-    
+
     private PendingIntent activityIntent;
     private PendingIntent dismissPendingIntent;
     private PendingIntent playPausePendingIntent;
@@ -88,7 +96,7 @@ public class MediaPlayerService extends Service {
         String ns = Context.NOTIFICATION_SERVICE;
         mNotificationManager = (NotificationManager) getSystemService(ns);
 
-        Intent notificationIntent = new Intent(getApplicationContext(),MainActivity.class);
+        Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class);
 
         activityIntent = PendingIntent.getActivity(this, 0, notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT);
 
@@ -152,19 +160,19 @@ public class MediaPlayerService extends Service {
                         audioFocus = false;
                         wasPlaying = false;
 
-                        if(mp.isPlaying()) {
+                        if (mp.isPlaying()) {
                             mp.stop();
                             am.abandonAudioFocus(mOnAudioFocusChangeListener);
                         }
                         break;
                     case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
                         audioFocus = false;
-                        if(mp.isPlaying()) {
+                        if (mp.isPlaying()) {
                             playPause();
                         }
                         break;
                     case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                        if(mp.isPlaying()) {
+                        if (mp.isPlaying()) {
                             mp.setVolume(0.2f, 0.2f);
                         }
                         break;
@@ -230,6 +238,9 @@ public class MediaPlayerService extends Service {
                     case INTENT_DISMISS_NOTIFICATION:
                         stopMediaPlayerService();
                         break;
+                    case INTENT_THERE_IS_NO_SONGS:
+                        stopMediaPlayerService();
+                        break;
                 }
             }
         };
@@ -240,21 +251,20 @@ public class MediaPlayerService extends Service {
         intentFilter.addAction(MainActivity.INTENT_LIKED);
         intentFilter.addAction(MainActivity.INTENT_DISLIKED);
         intentFilter.addAction(INTENT_DISMISS_NOTIFICATION);
+        intentFilter.addAction(INTENT_THERE_IS_NO_SONGS);
 
         //intentFilter.addAction(INTENT_SESSION_TRACKS_GENERATED);
 
         registerReceiver(mReceiver, intentFilter);
 
         initNotification();
-
-        startSession();
     }
 
     private void stopMediaPlayerService() {
         this.stopService(new Intent(this, MediaPlayerService.class));
     }
 
-    private List<Track> generateNewTracks() {
+    private List<Track> generateNewTracks(int sessionType) {
         Log.d(TAG, "generateNewTracks()");
 
         List<Track> tempList = new ArrayList<Track>();
@@ -262,17 +272,109 @@ public class MediaPlayerService extends Service {
 
         Log.d(TAG, "tempTrackList.isEmpty(): " + tempTrackList.isEmpty());
         if (!tempTrackList.isEmpty()) {
-            int count= 0;
+            switch (sessionType) {
+                case SESSION_TYPE_GENERAL:
+                    tempList = getGeneralPlaylist(tempTrackList);
+                    break;
+                case SESSION_TYPE_NEW:
+                    tempList = getNewPlaylist(tempTrackList);
+                    break;
+                case SESSION_TYPE_UNDERRATED:
+                    tempList = getUnderratedPlaylist(tempTrackList);
+                    break;
+                case SESSION_TYPE_TRASH:
+                    tempList = getTrashPlaylist(tempTrackList);
+                    break;
+            }
 
+            if (sessionType != SESSION_TYPE_GENERAL) {
+                if (tempList.isEmpty()) {
+                    sendBroadcast(new Intent().setAction(INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION));
+                    this.sessionType = SESSION_TYPE_GENERAL;
+                    tempList = getGeneralPlaylist(tempTrackList);
+                }
+            }
+        }
+
+        Log.d(TAG, "tempList.size(): " + tempList.size());
+
+        if (tempList.isEmpty()) {
+            sendBroadcast(new Intent().setAction(INTENT_THERE_IS_NO_SONGS));
+        }
+
+
+        return tempList;
+    }
+
+    private List<Track> getTrashPlaylist(List<Track> tempTrackList) {
+        //TODO
+        return null;
+    }
+
+    private List<Track> getNewPlaylist(List<Track> tempTrackList) {
+        //TODO
+        return null;
+    }
+
+    private List<Track> getUnderratedPlaylist(List<Track> tempTrackList) {
+        Log.d(TAG, "getUnderratedPlaylist()");
+        List<Track> tempList = new ArrayList<Track>();
+
+        /**
+         * referring to how many times does a song need to be
+         * played/selected before it is not a rookie
+         * TODO XZ: in future, this should be a relative number
+         * such as top played song is at 100 completeCount
+         * hence an underrated song would be, say maxCount * 0.4?
+         */
+        int rookieThreshold = 10;
+
+        if (!tempTrackList.isEmpty()) {
+            Collections.shuffle(tempTrackList);
+
+            for (Track t : tempTrackList) {
+
+                int completedCount = t.getCompletedCount();
+                int skippedCount = t.getSkippedCount();
+                int selectedCount = t.getSelectedCount();
+                int likedCount = t.getLikedCount();
+                int dislikedCount = t.getDislikedCount();
+
+                if (completedCount + selectedCount < rookieThreshold) {
+                    if (selectedCount > 3) {
+                        if (skippedCount <= completedCount) {
+                            tempList.add(t);
+                        }
+                    } else {
+                        if (completedCount - skippedCount > 3) {
+                            tempList.add(t);
+                        } else {
+                            if (likedCount - dislikedCount > 3) {
+                                tempList.add(t);
+                            }
+                        }
+                    }
+                }
+
+                if (tempList.size() == 10) {
+                    break;
+                }
+            }
+        }
+
+        Log.d(TAG, "tempList.size():" + tempList.size());
+
+        return tempList;
+    }
+
+    private List<Track> getGeneralPlaylist(List<Track> tempTrackList) {
+        List<Track> tempList = new ArrayList<Track>();
+
+        if (tempTrackList != null) {
             Collections.shuffle(tempTrackList);
 
             for (Track t : tempTrackList) {
                 Log.d(TAG, "t.getTitle(): " + t.getTitle());
-
-//                int completedCount = res.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
-//                int skippedCount = res.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
-//                int likedCount = res.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
-//                int dislikedCount = res.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
 
                 int completedCount = t.getCompletedCount();
                 int skippedCount = t.getSkippedCount();
@@ -280,10 +382,10 @@ public class MediaPlayerService extends Service {
                 int likedCount = t.getLikedCount();
                 int dislikedCount = t.getDislikedCount();
 
-                /*
-                TODO need to make the ratio more representative of the respective counts
-                i.e.    if i completed the song once, it should only give like 0.6
-                        but if i completed the song 100 times, it should give like 0.9?
+                /**
+                 * TODO need to make the ratio more representative of the respective counts
+                 * i.e. if i completed the song once, it should only give like 0.6
+                 * but if i completed the song 100 times, it should give like 0.9?
                  */
                 int comMinusSkip = completedCount - skippedCount;
                 double cmsRatio = 0;
@@ -297,9 +399,7 @@ public class MediaPlayerService extends Service {
                     }
                 }
 
-                /*
-                TODO similarly as above, this algo needs rework in future
-                 */
+                //TODO similarly as above, this algo needs rework in future
                 int likeMinusDislike = likedCount - dislikedCount;
                 double lmdRatio = 0;
                 if (likeMinusDislike > 0) {
@@ -313,13 +413,13 @@ public class MediaPlayerService extends Service {
                 }
 
                 //XZ: it should add up to 100 in total
-                final double chanceContributionWeightage        = 50;
-                final double completedVsSkippedContributionWeightage     = 20;
-                final double likeDislikeContributionWeightage   = 30;
+                final double chanceContributionWeightage = 50;
+                final double completedVsSkippedContributionWeightage = 20;
+                final double likeDislikeContributionWeightage = 30;
 
-                double chanceContribution               = chanceContributionWeightage * Math.random();
-                double completedVsSkippedContribution   = completedVsSkippedContributionWeightage * cmsRatio;
-                double likeDislikeContribution          = likeDislikeContributionWeightage * lmdRatio;
+                double chanceContribution = chanceContributionWeightage * Math.random();
+                double completedVsSkippedContribution = completedVsSkippedContributionWeightage * cmsRatio;
+                double likeDislikeContribution = likeDislikeContributionWeightage * lmdRatio;
 
                 //double selectedContribution    = 20; //TODO *WIP*
                 //double freshnessContribution    = 20; //TODO *WIP*
@@ -336,26 +436,24 @@ public class MediaPlayerService extends Service {
                 }
             }
         }
-
-        Log.d(TAG, "tempList.size(): " + tempList.size());
         return tempList;
     }
 
 
-
-    public void startSession() {
+    public void startSession(int sessionType) {
         Log.d(TAG, "startSession()");
 
         //TODO might wanna consider to fetch fresh tracks in future
 
         currentPlaylist.clear();
         globalTrackNo = 0;
+        this.sessionType = sessionType;
 
         /*
         TODO it shld be an async task in future
         refer to https://github.com/realm/realm-java/issues/1208
          */
-        currentPlaylist.addAll(generateNewTracks());
+        currentPlaylist.addAll(generateNewTracks(sessionType));
 
         //sendBroadcast(new Intent(INTENT_SESSION_TRACKS_GENERATING));
         //sendBroadcast(new Intent().setAction(INTENT_SESSION_TRACKS_GENERATED));
@@ -364,21 +462,12 @@ public class MediaPlayerService extends Service {
         showNotification();
     }
 
-    public void underratedSession() {
-        Log.d(TAG, "generateNewTracks()");
-
-        currentPlaylist.clear();
-        globalTrackNo = 0;
-
-
-    }
-
     private void checkIfRegisterAsSkip() {
         if (currentTrack != null) {
             long millis = System.currentTimeMillis() - mStartTime;
             accumulatedPlaytimeForThisTrack += millis;
 
-            if (accumulatedPlaytimeForThisTrack > currentTrack.getDuration()/2) {
+            if (accumulatedPlaytimeForThisTrack > currentTrack.getDuration() / 2) {
                 //dun consider as skip, just "next"
             } else {
                 //its a skip, the guy dun like this song1
@@ -413,7 +502,7 @@ public class MediaPlayerService extends Service {
             int i = Math.max(currentPlaylist.size() - 5, globalTrackNo);
 
             if (currentPlaylist.size() - 5 <= globalTrackNo) {
-                currentPlaylist.addAll(generateNewTracks());
+                currentPlaylist.addAll(generateNewTracks(sessionType));
             }
             return true;
         } else {
@@ -542,13 +631,33 @@ public class MediaPlayerService extends Service {
         return mBinder;
     }
 
-
-
     public Track getCurrentTrack() {
         return currentTrack;
     }
 
     public void setCurrentTrack(Track currentTrack) {
         this.currentTrack = currentTrack;
+    }
+
+    public int getSessionType() {
+        return sessionType;
+    }
+
+    public String getSessionTypeString() {
+        switch (sessionType) {
+            default:
+            case SESSION_TYPE_GENERAL:
+                return "General Playlist";
+            case SESSION_TYPE_NEW:
+                return "New Songs";
+            case SESSION_TYPE_UNDERRATED:
+                return "Underrated Songs";
+            case SESSION_TYPE_TRASH:
+                return "Delete Candidates";
+        }
+    }
+
+    public void setSessionType(int sessionType) {
+        this.sessionType = sessionType;
     }
 }

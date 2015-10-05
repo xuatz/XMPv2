@@ -8,16 +8,16 @@
     <TextView android:text="@string/hello_world" android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/tv_current_song_title"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:textSize="35sp" />
+        android:textSize="35sp"
+        android:layout_below="@+id/tv_session_type"
+        android:layout_centerHorizontal="true" />
 
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Play/Pause"
         android:id="@+id/btn_play_pause"
-        android:layout_below="@+id/tv_current_song_title"
+        android:layout_above="@+id/btn_dislike"
         android:layout_alignParentStart="true" />
 
     <Button
@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:text="Thumbs Up Man~"
         android:id="@+id/btn_like"
-        android:layout_below="@+id/btn_play_pause"
+        android:layout_alignTop="@+id/btn_dislike"
         android:layout_toEndOf="@+id/btn_dislike" />
 
     <Button
@@ -41,7 +41,7 @@
         android:layout_height="wrap_content"
         android:text="BOO!!!"
         android:id="@+id/btn_dislike"
-        android:layout_below="@+id/btn_play_pause"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true" />
 
     <TextView
@@ -50,7 +50,7 @@
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="Complete Counts:"
         android:id="@+id/textView"
-        android:layout_below="@+id/btn_like"
+        android:layout_alignTop="@+id/tvCurrentTrackComCount"
         android:layout_alignParentStart="true" />
 
     <TextView
@@ -59,7 +59,7 @@
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="Skipped Counts:"
         android:id="@+id/textView2"
-        android:layout_below="@+id/textView"
+        android:layout_above="@+id/textView3"
         android:layout_alignParentStart="true" />
 
     <TextView
@@ -68,7 +68,7 @@
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="Liked Counts:"
         android:id="@+id/textView3"
-        android:layout_below="@+id/textView2"
+        android:layout_above="@+id/textView4"
         android:layout_alignParentStart="true" />
 
     <TextView
@@ -77,8 +77,8 @@
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="Disliked Counts:"
         android:id="@+id/textView4"
-        android:layout_below="@+id/textView3"
-        android:layout_alignParentStart="true" />
+        android:layout_above="@+id/btn_play_pause"
+        android:layout_toStartOf="@+id/tvCurrentTrackSkipCount" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -115,5 +115,32 @@
         android:id="@+id/tvCurrentTrackDislikeCount"
         android:layout_alignTop="@+id/textView4"
         android:layout_toEndOf="@+id/textView4" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="Medium Text"
+        android:id="@+id/tv_session_type"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Small Text"
+        android:id="@+id/tv_artist"
+        android:layout_below="@+id/tv_current_song_title"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Small Text"
+        android:id="@+id/tv_album"
+        android:layout_below="@+id/tv_artist"
+        android:layout_alignParentStart="true" />
 
 </RelativeLayout>

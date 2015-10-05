@@ -9,8 +9,13 @@ import android.util.Log;
 import com.xuatzsolutions.xuatzmediaplayer2.MainActivity;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 
+import java.util.Calendar;
+
+import hirondelle.date4j.DateTime;
 import io.realm.Realm;
+import io.realm.RealmResults;
 
 /**
  * Created by xuatz on 24/9/2015.
@@ -33,7 +38,7 @@ public class MySongManager {
             MediaStore.Audio.Media.ALBUM_KEY
     };
 
-    public static void updateLibrary(Context context) {
+    public static void updateLibrary(Context context, boolean rebuildStats) {
         Log.d(TAG, "updateLibrary() start");
 
         Realm realm = Realm.getInstance(Migration.getConfig(context));
@@ -64,49 +69,75 @@ public class MySongManager {
         int albumIdColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID);
         int albumKeyColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_KEY);
 
-        int debugCount = 0;
-
+        realm.beginTransaction();
         while (cursor.moveToNext()) {
             Track track = new Track();
 
+            Track res2 = realm.where(Track.class).equalTo("title", cursor.getString(titleColumn)).findFirst();
+            if (res2 != null) {
+                track = res2;
+
+                if (rebuildStats) {
+                    RealmResults<TrackStats> statsRes =
+                            realm.where(TrackStats.class)
+                                    .equalTo("title", track.getTitle())
+                                    .findAll();
+
+                    if (!statsRes.isEmpty()) {
+                        Log.d(TAG, "==================");
+                        Log.d(TAG, "track.getTitle(): " + track.getTitle());
+                        Log.d(TAG, "track.getCompletedCount(): " + track.getCompletedCount());
+                        Log.d(TAG, "track.getSkippedCount(): " + track.getSkippedCount());
+                        Log.d(TAG, "track.getLikedCount(): " + track.getLikedCount());
+                        Log.d(TAG, "track.getDislikedCount(): " + track.getDislikedCount());
+
+                        //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
+                        int completedCount = statsRes.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
+                        int skippedCount = statsRes.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
+                        int likedCount = statsRes.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
+                        int dislikedCount = statsRes.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
+
+                        track.setCompletedCount(completedCount);
+                        track.setSkippedCount(skippedCount);
+                        track.setLikedCount(likedCount);
+                        track.setDislikedCount(dislikedCount);
+                        track.setStatsUpdatedAt(DateTime.now(Calendar.getInstance().getTimeZone()).toString());
+
+                        Track test = realm.where(Track.class)
+                                .equalTo("title", track.getTitle())
+                                .findFirst();
+
+                        Log.d(TAG, "test.getTitle(): " + test.getTitle());
+                        Log.d(TAG, "test.getCompletedCount(): " + test.getCompletedCount());
+                        Log.d(TAG, "test.getSkippedCount(): " + test.getSkippedCount());
+                        Log.d(TAG, "test.getLikedCount(): " + test.getLikedCount());
+                        Log.d(TAG, "test.getDislikedCount(): " + test.getDislikedCount());
+
+                        Log.d(TAG, "==================");
+                    }
+                }
+            } else {
+                track.setTitle(cursor.getString(titleColumn));
+                track.setDateAdded(cursor.getString(dateAddedColumn));
+            }
+
             track.setId(cursor.getLong(idColumn));
             track.setDisplayName(cursor.getString(displayNameColumn));
-            track.setTitle(cursor.getString(titleColumn));
             track.setTitleKey(cursor.getString(titleKeyColumn));
             track.setDuration(cursor.getInt(durationColumn));
             track.setTrackNo(cursor.getInt(trackColumn));
             track.setArtist(cursor.getString(artistColumn));
-            track.setDateAdded(cursor.getString(dateAddedColumn));
             track.setPath(cursor.getString(dataColumn));
 
             track.setAlbum(cursor.getString(albumColumn));
             track.setAlbumId(cursor.getString(albumIdColumn));
             track.setAlbumKey(cursor.getString(albumKeyColumn));
 
-            if (debugCount == 5) {
-                Log.d(TAG, "MediaStore.Audio.Media._ID: " + track.getId());
-                Log.d(TAG, "MediaStore.Audio.Media.DISPLAY_NAME: " + track.getDisplayName());
-                Log.d(TAG, "MediaStore.Audio.Media.TITLE: " + track.getTitle());
-                Log.d(TAG, "MediaStore.Audio.Media.TITLE_KEY: " + track.getTitleKey());
-                Log.d(TAG, "MediaStore.Audio.Media.DATE_ADDED: " + track.getDateAdded());
-
-                Log.d(TAG, "MediaStore.Audio.Media.ALBUM: " + track.getAlbum());
-                Log.d(TAG, "MediaStore.Audio.Media.ALBUM_ID: " + track.getAlbumId());
-                Log.d(TAG, "MediaStore.Audio.Media.ALBUM_KEY: " + track.getAlbumKey());
-            }
-
-            debugCount++;
-
-            realm.beginTransaction();
             realm.copyToRealmOrUpdate(track);
-            realm.commitTransaction();
         }
-
-        Log.d(TAG, "no of cursor items: " + cursor.getCount());
+        realm.commitTransaction();
 
         cursor.close();
-
-
         Log.d(TAG, "updateLibrary() end");
     }
 }
