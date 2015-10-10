@@ -1,52 +1,167 @@
 package com.xuatzsolutions.xuatzmediaplayer2.Models;
 
-import java.util.Date;
+import java.util.Calendar;
 
+import hirondelle.date4j.DateTime;
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
-import io.realm.internal.ColumnType;
 
 /**
  * Created by xuatz on 24/9/2015.
  */
 public class Track extends RealmObject {
 
-    //    @Ignore
-    //    private int             sessionId;
-
     @PrimaryKey
+    private String local_id;
+
     private String title;
+    private String artist;
+    private String album;
+
+    private int duration;
+    private int trackNo;
 
     private long id;
     private String displayName;
     private String titleKey;
-    private String artist;
-
-    private int duration;
-    private int trackNo;
-    private String dateAdded;
     private String path;
-
-    private String album;
     private String albumId;
 
-    //==============
-    //v1-start
+    private String albumKey;
 
-    private int completedCount;
-    private int skippedCount;
-    private int selectedCount;
-    private int likedCount;
-    private int dislikedCount;
+    private int completedCount = 0;
+    private int skippedCount = 0;
+    private int selectedCount = 0;
+    private int likedCount = 0;
+    private int dislikedCount = 0;
 
-    private String statsUpdatedAt;
+    private String statsUpdatedAt = DateTime.now(Calendar.getInstance().getTimeZone()).toString();
+    private String dateAdded = DateTime.now(Calendar.getInstance().getTimeZone()).toString();
 
-    public String getStatsUpdatedAt() {
-        return statsUpdatedAt;
+    //============
+
+    public Track() {
     }
 
-    public void setStatsUpdatedAt(String statsUpdatedAt) {
-        this.statsUpdatedAt = statsUpdatedAt;
+    public Track(String title, String artist, String album, String path) {
+        this.title = title;
+        this.artist = artist;
+        this.album = album;
+        this.path = path;
+
+        this.local_id = getLocalId(title, artist, album);
+    }
+
+    public static String getLocalId(String title, String artist, String album) {
+        StringBuilder sb = new StringBuilder();
+
+        if (title == null) {
+            sb.append("null");
+        } else {
+            sb.append(title);
+        }
+
+        if (artist == null) {
+            sb.append("null");
+        } else {
+            sb.append(artist);
+        }
+
+        if (album == null) {
+            sb.append("null");
+        } else {
+            sb.append(album);
+        }
+
+        return sb.toString();
+    }
+
+    public String getAlbum() {
+        return album;
+    }
+
+    public void setAlbum(String album) {
+        this.album = album;
+    }
+
+    public String getLocal_id() {
+        return local_id;
+    }
+
+    public void setLocal_id(String local_id) {
+        this.local_id = local_id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getArtist() {
+        return artist;
+    }
+
+    public void setArtist(String artist) {
+        this.artist = artist;
+    }
+
+    public int getDuration() {
+        return duration;
+    }
+
+    public void setDuration(int duration) {
+        this.duration = duration;
+    }
+
+    public int getTrackNo() {
+        return trackNo;
+    }
+
+    public void setTrackNo(int trackNo) {
+        this.trackNo = trackNo;
+    }
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getTitleKey() {
+        return titleKey;
+    }
+
+    public void setTitleKey(String titleKey) {
+        this.titleKey = titleKey;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getAlbumId() {
+        return albumId;
+    }
+
+    public void setAlbumId(String albumId) {
+        this.albumId = albumId;
     }
 
     public int getCompletedCount() {
@@ -89,86 +204,12 @@ public class Track extends RealmObject {
         this.dislikedCount = dislikedCount;
     }
 
-    public String getAlbumId() {
-        return albumId;
+    public String getStatsUpdatedAt() {
+        return statsUpdatedAt;
     }
 
-    public void setAlbumId(String albumId) {
-        this.albumId = albumId;
-    }
-
-    public String getAlbumKey() {
-        return albumKey;
-    }
-
-    public void setAlbumKey(String albumKey) {
-        this.albumKey = albumKey;
-    }
-
-    private String albumKey;
-
-    public String getAlbum() {
-        return album;
-    }
-
-    public void setAlbum(String album) {
-        this.album = album;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
-    }
-
-    public String getTitleKey() {
-        return titleKey;
-    }
-
-    public void setTitleKey(String titleKey) {
-        this.titleKey = titleKey;
-    }
-
-    public String getArtist() {
-        return artist;
-    }
-
-    public void setArtist(String artist) {
-        this.artist = artist;
-    }
-
-    public int getDuration() {
-        return duration;
-    }
-
-    public void setDuration(int duration) {
-        this.duration = duration;
-    }
-
-    public int getTrackNo() {
-        return trackNo;
-    }
-
-    public void setTrackNo(int trackNo) {
-        this.trackNo = trackNo;
+    public void setStatsUpdatedAt(String statsUpdatedAt) {
+        this.statsUpdatedAt = statsUpdatedAt;
     }
 
     public String getDateAdded() {
@@ -179,11 +220,11 @@ public class Track extends RealmObject {
         this.dateAdded = dateAdded;
     }
 
-    public String getPath() {
-        return path;
+    public String getAlbumKey() {
+        return albumKey;
     }
 
-    public void setPath(String path) {
-        this.path = path;
+    public void setAlbumKey(String albumKey) {
+        this.albumKey = albumKey;
     }
 }

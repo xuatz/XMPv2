@@ -15,6 +15,9 @@ package com.xuatzsolutions.xuatzmediaplayer2.Models;/*
  */
 
 import android.content.Context;
+import android.util.Log;
+
+import java.util.HashMap;
 
 import hirondelle.date4j.DateTime;
 import io.realm.Realm;
@@ -33,7 +36,8 @@ import io.realm.internal.Table;
 
 public class Migration implements RealmMigration {
 
-    static int currentVersion = 1;
+    private static final String TAG = "Migration";
+    static int currentVersion = 0;
 
     public static RealmConfiguration getConfig(Context context) {
         return new RealmConfiguration.Builder(context)
@@ -44,31 +48,24 @@ public class Migration implements RealmMigration {
 
     @Override
     public long execute(Realm realm, long version) {
-        // Migrate from version 0 to version 1
+        Log.d(TAG, "execute() start");
+
         if (version == 0) {
-            Table trackTable = realm.getTable(Track.class);
+            version++;
+        }
 
-            long completedCountIndex = trackTable.addColumn(ColumnType.INTEGER, "completedCount");
-            long skippedCountIndex = trackTable.addColumn(ColumnType.INTEGER, "skippedCount");
-            long selectedCountIndex = trackTable.addColumn(ColumnType.INTEGER, "selectedCount");
-            long likedCountIndex = trackTable.addColumn(ColumnType.INTEGER, "likedCount");
-            long dislikedCountIndex = trackTable.addColumn(ColumnType.INTEGER, "dislikedCount");
-
-            long statsUpdatedAtIndex = trackTable.addColumn(ColumnType.STRING, "statsUpdatedAt");
-
-            for (int i = 0; i < trackTable.size(); i++) {
-                trackTable.setLong(completedCountIndex, i, 0);
-                trackTable.setLong(skippedCountIndex, i, 0);
-                trackTable.setLong(selectedCountIndex, i, 0);
-                trackTable.setLong(likedCountIndex, i, 0);
-                trackTable.setLong(dislikedCountIndex, i, 0);
-
-                DateTime random = new DateTime(2000, 12, 22, null, null, null, null);
-                trackTable.setString(statsUpdatedAtIndex, i, random.toString());
-            }
+        if (version == 1) {
+            Log.d(TAG, "Upgrading to Schema v2");
 
             version++;
         }
+
+        if (version == 2) {
+            Log.d(TAG, "Upgrading to Schema v3");
+
+            version++;
+        }
+
         return version;
     }
 

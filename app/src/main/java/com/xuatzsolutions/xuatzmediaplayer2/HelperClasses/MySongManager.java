@@ -63,27 +63,36 @@ public class MySongManager {
         int durationColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.DURATION);
         int trackColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.TRACK);
         int artistColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST);
-        int dateAddedColumn 	= cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED);
+        //int dateAddedColumn 	= cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED);
         int dataColumn 			= cursor.getColumnIndex(MediaStore.Audio.Media.DATA);
         int albumColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM);
         int albumIdColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID);
         int albumKeyColumn 		= cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_KEY);
 
         realm.beginTransaction();
-        while (cursor.moveToNext()) {
-            Track track = new Track();
 
-            Track res2 = realm.where(Track.class).equalTo("title", cursor.getString(titleColumn)).findFirst();
+        while (cursor.moveToNext()) {
+            Track track;
+
+            String local_id = Track.getLocalId(cursor.getString(titleColumn), cursor.getString(artistColumn), cursor.getString(albumColumn));
+
+            Track res2 = realm.where(Track.class)
+                    .equalTo("local_id", local_id)
+                    .findFirst();
+
             if (res2 != null) {
+                Log.d(TAG, "This song already exist in the local database");
                 track = res2;
 
                 if (rebuildStats) {
+                    Log.d(TAG, "hi4");
                     RealmResults<TrackStats> statsRes =
                             realm.where(TrackStats.class)
                                     .equalTo("title", track.getTitle())
                                     .findAll();
 
                     if (!statsRes.isEmpty()) {
+                        Log.d(TAG, "hi5");
                         Log.d(TAG, "==================");
                         Log.d(TAG, "track.getTitle(): " + track.getTitle());
                         Log.d(TAG, "track.getCompletedCount(): " + track.getCompletedCount());
@@ -102,38 +111,33 @@ public class MySongManager {
                         track.setLikedCount(likedCount);
                         track.setDislikedCount(dislikedCount);
                         track.setStatsUpdatedAt(DateTime.now(Calendar.getInstance().getTimeZone()).toString());
-
-                        Track test = realm.where(Track.class)
-                                .equalTo("title", track.getTitle())
-                                .findFirst();
-
-                        Log.d(TAG, "test.getTitle(): " + test.getTitle());
-                        Log.d(TAG, "test.getCompletedCount(): " + test.getCompletedCount());
-                        Log.d(TAG, "test.getSkippedCount(): " + test.getSkippedCount());
-                        Log.d(TAG, "test.getLikedCount(): " + test.getLikedCount());
-                        Log.d(TAG, "test.getDislikedCount(): " + test.getDislikedCount());
-
-                        Log.d(TAG, "==================");
                     }
                 }
             } else {
-                track.setTitle(cursor.getString(titleColumn));
-                track.setDateAdded(cursor.getString(dateAddedColumn));
+                Log.d(TAG, "hi6 - means its a new record");
+                Log.d(TAG, "cursor.getString(titleColumn): " + cursor.getString(titleColumn));
+                Log.d(TAG, "cursor.getString(artistColumn): " + cursor.getString(artistColumn));
+                Log.d(TAG, "cursor.getString(albumColumn): " + cursor.getString(albumColumn));
+
+                track = new Track(
+                        cursor.getString(titleColumn),
+                        cursor.getString(artistColumn),
+                        cursor.getString(albumColumn),
+                        cursor.getString(dataColumn)
+                );
+
+                track.setId(cursor.getLong(idColumn));
+                track.setDisplayName(cursor.getString(displayNameColumn));
+                track.setTitleKey(cursor.getString(titleKeyColumn));
+                track.setDuration(cursor.getInt(durationColumn));
+                track.setTrackNo(cursor.getInt(trackColumn));
+                track.setAlbumId(cursor.getString(albumIdColumn));
+                track.setAlbumKey(cursor.getString(albumKeyColumn));
+
+                track = realm.copyToRealm(track);
             }
 
-            track.setId(cursor.getLong(idColumn));
-            track.setDisplayName(cursor.getString(displayNameColumn));
-            track.setTitleKey(cursor.getString(titleKeyColumn));
-            track.setDuration(cursor.getInt(durationColumn));
-            track.setTrackNo(cursor.getInt(trackColumn));
-            track.setArtist(cursor.getString(artistColumn));
             track.setPath(cursor.getString(dataColumn));
-
-            track.setAlbum(cursor.getString(albumColumn));
-            track.setAlbumId(cursor.getString(albumIdColumn));
-            track.setAlbumKey(cursor.getString(albumKeyColumn));
-
-            realm.copyToRealmOrUpdate(track);
         }
         realm.commitTransaction();
 

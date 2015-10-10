@@ -1,7 +1,9 @@
 package com.xuatzsolutions.xuatzmediaplayer2.Models;
 
+import java.util.Calendar;
 import java.util.Date;
 
+import hirondelle.date4j.DateTime;
 import io.realm.RealmObject;
 
 /**
@@ -14,11 +16,13 @@ public class TrackStats extends RealmObject {
     public static final int SONG_SELECTED = 3;
     public static final int SONG_LIKED = 4;
     public static final int SONG_DISLIKED = 5;
+    public static final int SONG_HALF_PLAYED = 6;
 
-    private String title;
+    private String local_id;
+
     private int type;
     private String createdBy;
-    private Date createdAt;
+    private String createdAt = DateTime.now(Calendar.getInstance().getTimeZone()).toString();
 
     public TrackStats() {
 
@@ -26,24 +30,22 @@ public class TrackStats extends RealmObject {
 
     /**
      *
-     * @param title
+     * @param local_id
      * @param type either SONG_COMPLETED, SONG_SKIPPED, etc
      * @param createdBy
-     * @param createdAt
      */
-    public TrackStats(String title, int type, String createdBy, Date createdAt) {
-        this.title = title;
+    public TrackStats(String local_id, int type, String createdBy) {
+        this.local_id = local_id;
         this.type = type;
         this.createdBy = createdBy;
-        this.createdAt = createdAt;
     }
 
-    public String getTitle() {
-        return title;
+    public String getLocal_id() {
+        return local_id;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setLocal_id(String local_id) {
+        this.local_id = local_id;
     }
 
     public int getType() {
@@ -62,11 +64,11 @@ public class TrackStats extends RealmObject {
         this.createdBy = createdBy;
     }
 
-    public Date getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Date createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 }

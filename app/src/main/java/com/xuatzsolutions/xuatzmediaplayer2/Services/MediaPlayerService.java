@@ -201,7 +201,7 @@ public class MediaPlayerService extends Service {
                 Log.d(TAG, "onCompletion is called! I want to monitor in the future to see if when i skip a song, will this method be played");
 
                 if (currentTrack != null) {
-                    createTrackStats(currentTrack.getTitle(), TrackStats.SONG_COMPLETED);
+                    createTrackStats(currentTrack.getLocal_id(), TrackStats.SONG_COMPLETED);
                     prepNextSong();
                 }
             }
@@ -223,12 +223,12 @@ public class MediaPlayerService extends Service {
                         break;
                     case MainActivity.INTENT_LIKED:
                         if (currentTrack != null) {
-                            createTrackStats(currentTrack.getTitle(), TrackStats.SONG_LIKED);
+                            createTrackStats(currentTrack.getLocal_id(), TrackStats.SONG_LIKED);
                         }
                         break;
                     case MainActivity.INTENT_DISLIKED:
                         if (currentTrack != null) {
-                            createTrackStats(currentTrack.getTitle(), TrackStats.SONG_DISLIKED);
+                            createTrackStats(currentTrack.getLocal_id(), TrackStats.SONG_DISLIKED);
                         }
                         prepNextSong();
                         break;
@@ -340,16 +340,22 @@ public class MediaPlayerService extends Service {
                 int likedCount = t.getLikedCount();
                 int dislikedCount = t.getDislikedCount();
 
+//                Log.d(TAG, "completedCount: " + completedCount);
+//                Log.d(TAG, "skippedCount: " + skippedCount);
+//                Log.d(TAG, "selectedCount: " + selectedCount);
+//                Log.d(TAG, "likedCount: " + likedCount);
+//                Log.d(TAG, "dislikedCount: " + dislikedCount);
+
                 if (completedCount + selectedCount < rookieThreshold) {
-                    if (selectedCount > 3) {
+                    if (selectedCount > 2) {
                         if (skippedCount <= completedCount) {
                             tempList.add(t);
                         }
                     } else {
-                        if (completedCount - skippedCount > 3) {
+                        if (completedCount > 2) {
                             tempList.add(t);
                         } else {
-                            if (likedCount - dislikedCount > 3) {
+                            if (likedCount > dislikedCount) {
                                 tempList.add(t);
                             }
                         }
@@ -469,10 +475,10 @@ public class MediaPlayerService extends Service {
 
             if (accumulatedPlaytimeForThisTrack > currentTrack.getDuration() / 2) {
                 //dun consider as skip, just "next"
+                createTrackStats(currentTrack.getLocal_id(), TrackStats.SONG_HALF_PLAYED);
             } else {
                 //its a skip, the guy dun like this song1
-
-                createTrackStats(currentTrack.getTitle(), TrackStats.SONG_SKIPPED);
+                createTrackStats(currentTrack.getLocal_id(), TrackStats.SONG_SKIPPED);
             }
         }
     }
@@ -605,8 +611,8 @@ public class MediaPlayerService extends Service {
         }
     }
 
-    private void createTrackStats(String trackTitle, int type) {
-        TrackStats stats = new TrackStats(trackTitle, type, android_id, Calendar.getInstance().getTime());
+    private void createTrackStats(String local_id, int type) {
+        TrackStats stats = new TrackStats(local_id, type, android_id);
 
         realm.beginTransaction();
         realm.copyToRealm(stats);

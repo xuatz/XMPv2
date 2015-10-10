@@ -29,6 +29,7 @@ import java.util.Calendar;
 
 import hirondelle.date4j.DateTime;
 import io.realm.Realm;
+import io.realm.RealmQuery;
 import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
@@ -208,42 +209,13 @@ public class MainActivity extends Activity {
             }
 
             if (mService.getCurrentTrack() != null) {
-                RealmResults<TrackStats> res =
-                        realm.where(TrackStats.class)
-                                .equalTo("title", mService.getCurrentTrack().getTitle())
-                                .findAll();
-
-                Log.d(TAG, "Kaypoh:res.size(): " + res.size());
-
-                int completed = 0, skipped = 0, selected = 0, liked= 0, disliked = 0;
-
-                for (TrackStats ts : res) {
-                    switch (ts.getType()) {
-                        case TrackStats.SONG_COMPLETED:
-                            completed++;
-                            break;
-                        case TrackStats.SONG_SKIPPED:
-                            skipped++;
-                            break;
-                        case TrackStats.SONG_SELECTED:
-                            selected++;
-                            break;
-                        case TrackStats.SONG_LIKED:
-                            liked++;
-                            break;
-                        case TrackStats.SONG_DISLIKED:
-                            disliked++;
-                            break;
-                    }
-                }
-
                 tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
 
-                tvCurrentTrackComCount.setText(""+completed);
-                tvCurrentTrackSkipCount.setText(""+skipped);
+                tvCurrentTrackComCount.setText(""+mService.getCurrentTrack().getCompletedCount());
+                tvCurrentTrackSkipCount.setText(""+mService.getCurrentTrack().getSkippedCount());
                 //tvCurrentTrackSelectCount.setText(selected);
-                tvCurrentTrackLikeCount.setText(""+liked);
-                tvCurrentTrackDislikeCount.setText(""+disliked);
+                tvCurrentTrackLikeCount.setText(""+mService.getCurrentTrack().getLikedCount());
+                tvCurrentTrackDislikeCount.setText(""+mService.getCurrentTrack().getDislikedCount());
 
                 tvCurrentSessionType.setText(mService.getSessionTypeString());
                 tvCurrentTrackArtist.setText(mService.getCurrentTrack().getArtist());
@@ -327,10 +299,31 @@ public class MainActivity extends Activity {
                 return true;
             case R.id.action_trash_tier:
                 //mService.startSession(MediaPlayerService.SESSION_TYPE_TRASH);
+                doSomething();
                 return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void doSomething() {
+        String local_id = null;
+
+        Track res = realm.where(Track.class)
+                .equalTo("album", local_id)
+                .findFirst();
+
+//        Track res2 = realm.where(Track.class)
+//                .equalTo("title", null)
+//                .equalTo("artist", cursor.getString(artistColumn))
+//                .equalTo("album", cursor.getString(albumColumn));
+
+        if (res == null) {
+            Log.d(TAG, "res is null!");
+        } else {
+            Log.d(TAG, "res is not null!");
+        }
+
     }
 
     public class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
