@@ -81,24 +81,22 @@ public class MySongManager {
                     .findFirst();
 
             if (res2 != null) {
-                Log.d(TAG, "This song already exist in the local database");
                 track = res2;
 
                 if (rebuildStats) {
-                    Log.d(TAG, "hi4");
                     RealmResults<TrackStats> statsRes =
                             realm.where(TrackStats.class)
                                     .equalTo("title", track.getTitle())
                                     .findAll();
 
                     if (!statsRes.isEmpty()) {
-                        Log.d(TAG, "hi5");
-                        Log.d(TAG, "==================");
-                        Log.d(TAG, "track.getTitle(): " + track.getTitle());
-                        Log.d(TAG, "track.getCompletedCount(): " + track.getCompletedCount());
-                        Log.d(TAG, "track.getSkippedCount(): " + track.getSkippedCount());
-                        Log.d(TAG, "track.getLikedCount(): " + track.getLikedCount());
-                        Log.d(TAG, "track.getDislikedCount(): " + track.getDislikedCount());
+//                        Log.d(TAG, "hi5");
+//                        Log.d(TAG, "==================");
+//                        Log.d(TAG, "track.getTitle(): " + track.getTitle());
+//                        Log.d(TAG, "track.getCompletedCount(): " + track.getCompletedCount());
+//                        Log.d(TAG, "track.getSkippedCount(): " + track.getSkippedCount());
+//                        Log.d(TAG, "track.getLikedCount(): " + track.getLikedCount());
+//                        Log.d(TAG, "track.getDislikedCount(): " + track.getDislikedCount());
 
                         //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
                         int completedCount = statsRes.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
@@ -114,10 +112,10 @@ public class MySongManager {
                     }
                 }
             } else {
-                Log.d(TAG, "hi6 - means its a new record");
-                Log.d(TAG, "cursor.getString(titleColumn): " + cursor.getString(titleColumn));
-                Log.d(TAG, "cursor.getString(artistColumn): " + cursor.getString(artistColumn));
-                Log.d(TAG, "cursor.getString(albumColumn): " + cursor.getString(albumColumn));
+//                Log.d(TAG, "hi6 - means its a new record");
+//                Log.d(TAG, "cursor.getString(titleColumn): " + cursor.getString(titleColumn));
+//                Log.d(TAG, "cursor.getString(artistColumn): " + cursor.getString(artistColumn));
+//                Log.d(TAG, "cursor.getString(albumColumn): " + cursor.getString(albumColumn));
 
                 track = new Track(
                         cursor.getString(titleColumn),

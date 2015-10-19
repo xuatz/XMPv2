@@ -188,6 +188,8 @@ public class MediaPlayerService extends Service {
             public void onPrepared(MediaPlayer mp) {
                 sendBroadcast(new Intent().setAction(INTENT_MP_READY));
 
+                Log.d(TAG, "mp.onPrepared!");
+
                 mStartTime = System.currentTimeMillis();
                 accumulatedPlaytimeForThisTrack = 0;
 
