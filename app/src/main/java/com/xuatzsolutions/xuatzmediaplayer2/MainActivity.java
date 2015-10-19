@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
     private IntentFilter intentFilter;
 
     private TextView tvCurrentTrackTitle;
-    private TextView tvCurrentTrackComCount;
+    private TextView tvCurrentTrackPlayCount;
     private TextView tvCurrentTrackSkipCount;
     private TextView tvCurrentTrackLikeCount;
     private TextView tvCurrentTrackDislikeCount;
@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
         //=====================================
 
         tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
-        tvCurrentTrackComCount = (TextView) findViewById(R.id.tvCurrentTrackComCount);
+        tvCurrentTrackPlayCount = (TextView) findViewById(R.id.tv_current_track_play_count);
         tvCurrentTrackSkipCount = (TextView) findViewById(R.id.tvCurrentTrackSkipCount);
         //tvCurrentTrackSelectCount = (TextView) findViewById(R.id.tvCurrentTrackSelectCount);
         tvCurrentTrackLikeCount = (TextView) findViewById(R.id.tvCurrentTrackLikeCount);
@@ -239,7 +239,9 @@ public class MainActivity extends Activity {
             if (mService.getCurrentTrack() != null) {
                 tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
 
-                tvCurrentTrackComCount.setText(""+mService.getCurrentTrack().getCompletedCount());
+                int playCount = mService.getCurrentTrack().getCompletedCount() + mService.getCurrentTrack().getHalfPlayedCount();
+                tvCurrentTrackPlayCount.setText("" + playCount);
+
                 tvCurrentTrackSkipCount.setText(""+mService.getCurrentTrack().getSkippedCount());
                 //tvCurrentTrackSelectCount.setText(selected);
                 tvCurrentTrackLikeCount.setText(""+mService.getCurrentTrack().getLikedCount());
@@ -374,7 +376,7 @@ public class MainActivity extends Activity {
             progressDialog.setCancelable(false);
             progressDialog.show();
 
-            RealmResults<Track> res = realm.where(Track.class).findAll();
+            RealmResults<Track> res = realm.where(Track.class).equalTo("isHidden", false).findAll();
 
             if (res.size() == 0) {
                 isLibEmpty = true;

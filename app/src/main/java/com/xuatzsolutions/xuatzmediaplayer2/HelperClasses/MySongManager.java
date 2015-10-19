@@ -6,7 +6,6 @@ import android.database.Cursor;
 import android.provider.MediaStore;
 import android.util.Log;
 
-import com.xuatzsolutions.xuatzmediaplayer2.MainActivity;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
@@ -43,7 +42,12 @@ public class MySongManager {
 
         Realm realm = Realm.getInstance(Migration.getConfig(context));
 
-        //songs = new HashMap<String, Track>();
+        realm.beginTransaction();
+        RealmResults<Track> res = realm.where(Track.class).findAll();
+        for (int x = 0; x<res.size();x++) {
+            res.get(0).setIsAvailable(false);
+        }
+        realm.commitTransaction();
 
         String where = MediaStore.Audio.Media.IS_MUSIC + " = 1";
         String[] selectionArgs = null;
@@ -71,6 +75,8 @@ public class MySongManager {
 
         realm.beginTransaction();
 
+        String dateTimeNowToString = DateTime.now(Calendar.getInstance().getTimeZone()).toString();
+
         while (cursor.moveToNext()) {
             Track track;
 
@@ -82,14 +88,16 @@ public class MySongManager {
 
             if (res2 != null) {
                 track = res2;
+                track.setIsAvailable(true);
 
-                if (rebuildStats) {
-                    RealmResults<TrackStats> statsRes =
-                            realm.where(TrackStats.class)
-                                    .equalTo("title", track.getTitle())
-                                    .findAll();
+                if(!track.isHidden()) {
+                    if (rebuildStats) {
+                        RealmResults<TrackStats> statsRes =
+                                realm.where(TrackStats.class)
+                                        .equalTo("title", track.getTitle())
+                                        .findAll();
 
-                    if (!statsRes.isEmpty()) {
+                        if (!statsRes.isEmpty()) {
 //                        Log.d(TAG, "hi5");
 //                        Log.d(TAG, "==================");
 //                        Log.d(TAG, "track.getTitle(): " + track.getTitle());
@@ -98,17 +106,50 @@ public class MySongManager {
 //                        Log.d(TAG, "track.getLikedCount(): " + track.getLikedCount());
 //                        Log.d(TAG, "track.getDislikedCount(): " + track.getDislikedCount());
 
-                        //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
-                        int completedCount = statsRes.where().equalTo("type", TrackStats.SONG_COMPLETED).findAll().size();
-                        int skippedCount = statsRes.where().equalTo("type", TrackStats.SONG_SKIPPED).findAll().size();
-                        int likedCount = statsRes.where().equalTo("type", TrackStats.SONG_LIKED).findAll().size();
-                        int dislikedCount = statsRes.where().equalTo("type", TrackStats.SONG_DISLIKED).findAll().size();
+                            //res.where().equalTo("type", TrackStats.SONG_SELECTED) //TODO not implemented yet
 
-                        track.setCompletedCount(completedCount);
-                        track.setSkippedCount(skippedCount);
-                        track.setLikedCount(likedCount);
-                        track.setDislikedCount(dislikedCount);
-                        track.setStatsUpdatedAt(DateTime.now(Calendar.getInstance().getTimeZone()).toString());
+                            int completedCount = 0;
+                            int skippedCount = 0;
+                            int likedCount = 0;
+                            int dislikedCount = 0;
+                            int halfPlayedCount = 0;
+                            int selectedCount = 0;
+
+                            for (TrackStats ts : statsRes) {
+                                switch (ts.getType()) {
+                                    case TrackStats.SONG_COMPLETED:
+                                        completedCount++;
+                                        break;
+                                    case TrackStats.SONG_HALF_PLAYED:
+                                        halfPlayedCount++;
+                                        break;
+                                    case TrackStats.SONG_SELECTED:
+                                        selectedCount++;
+                                        break;
+                                    case TrackStats.SONG_SKIPPED:
+                                        skippedCount++;
+                                        break;
+                                    case TrackStats.SONG_LIKED:
+                                        likedCount++;
+                                        break;
+                                    case TrackStats.SONG_DISLIKED:
+                                        dislikedCount++;
+                                        break;
+
+                                }
+                            }
+
+                            track.setCompletedCount(completedCount);
+                            track.setHalfPlayedCount(halfPlayedCount);
+                            track.setSelectedCount(selectedCount);
+
+                            track.setSkippedCount(skippedCount);
+
+                            track.setLikedCount(likedCount);
+                            track.setDislikedCount(dislikedCount);
+
+                            track.setStatsUpdatedAt(dateTimeNowToString);
+                        }
                     }
                 }
             } else {

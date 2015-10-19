@@ -136,12 +136,15 @@ public class MediaPlayerService extends Service {
     public void onCreate() {
         super.onCreate();
 
+        android_id = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+
         currentPlaylist = new ArrayList<Track>();
 
         realm = Realm.getInstance(Migration.getConfig(this));
-        tracks = realm.where(Track.class).findAll();
-
-        android_id = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        tracks = realm.where(Track.class)
+                .equalTo("isHidden", false)
+                .equalTo("isAvailable", true)
+                .findAll();
 
         mOnAudioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
             @Override
@@ -270,7 +273,7 @@ public class MediaPlayerService extends Service {
         Log.d(TAG, "generateNewTracks()");
 
         List<Track> tempList = new ArrayList<Track>();
-        List<Track> tempTrackList = new ArrayList<Track>(realm.where(Track.class).findAll());
+        List<Track> tempTrackList = new ArrayList<Track>(tracks);
 
         Log.d(TAG, "tempTrackList.isEmpty(): " + tempTrackList.isEmpty());
         if (!tempTrackList.isEmpty()) {
