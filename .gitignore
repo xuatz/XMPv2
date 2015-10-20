@@ -35,3 +35,4 @@ build/
 #NDK
 obj/
 sh.exe.stackdump
+tr.exe.stackdump

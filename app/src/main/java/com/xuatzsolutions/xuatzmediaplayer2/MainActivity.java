@@ -409,12 +409,6 @@ public class MainActivity extends Activity {
                 isLibEmpty = false;
             }
 
-            if(mBound) {
-                if (!mService.isPlaying()) {
-                    mService.startSession(MediaPlayerService.SESSION_TYPE_GENERAL);
-                }
-            }
-
             progressDialog.dismiss();
         }
     }
