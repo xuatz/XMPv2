@@ -55,10 +55,20 @@ public class MySongManager {
 
         ContentResolver contentResolver = context.getContentResolver();
 
-        //MediaStore.Audio.Media.INTERNAL_CONTENT_URI
         Cursor cursor = contentResolver.query(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, TRACK_COLUMNS,
                 where, selectionArgs, orderBy);
+
+        Cursor[] cursors = new Cursor[2];
+        cursors[0] = contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, TRACK_COLUMNS,
+                where, selectionArgs, orderBy);
+
+        cursors[1] = contentResolver.query(
+                MediaStore.Audio.Media.INTERNAL_CONTENT_URI, TRACK_COLUMNS,
+                where, selectionArgs, orderBy);
+
+        Cursor cursor = new MergeCursor(cursors);
 
         int idColumn 			= cursor.getColumnIndex(MediaStore.Audio.Media._ID);
         int displayNameColumn 	= cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME);
