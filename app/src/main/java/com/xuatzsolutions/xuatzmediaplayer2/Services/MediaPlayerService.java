@@ -3,6 +3,7 @@ package com.xuatzsolutions.xuatzmediaplayer2.Services;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.ProgressDialog;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,12 +11,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 
+import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
 import com.xuatzsolutions.xuatzmediaplayer2.MainActivity;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
@@ -27,6 +30,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 
+import hirondelle.date4j.DateTime;
 import io.realm.Realm;
 import io.realm.RealmResults;
 
@@ -247,27 +251,19 @@ public class MediaPlayerService extends Service {
                         stopMediaPlayerService();
                         break;
                     case AudioManager.ACTION_AUDIO_BECOMING_NOISY:
-                        //TODO might have to handle some shit here
-                        if (mp != null) {
-                            if(mp.isPlaying()) {
-                                playPause();
-                            }
-                        }
+                        pause();
                         break;
                     case android.content.Intent.ACTION_HEADSET_PLUG:
                         int state = intent.getIntExtra("state", 4);
                         if(state == 0){
                             //unplugged
-                        }else if(state == 1){
+                            pause();
+                        } else if(state == 1){
                             //plugged in
-                            if (mp != null) {
-                                if(!mp.isPlaying()) {
-                                    if (currentTrack != null) {
-                                        playPause();
-                                    }
-                                }
+                            if (currentTrack != null) {
+                                play();
                             }
-                        }else {
+                        } else {
                             //others??
                         }
                         break;
@@ -539,7 +535,8 @@ public class MediaPlayerService extends Service {
             int i = Math.max(currentPlaylist.size() - 5, globalTrackNo);
 
             if (currentPlaylist.size() - 5 <= globalTrackNo) {
-                currentPlaylist.addAll(generateNewTracks(sessionType));
+                new TestAsync().execute();
+                //currentPlaylist.addAll(generateNewTracks(sessionType));
             }
             return true;
         } else {
@@ -547,34 +544,46 @@ public class MediaPlayerService extends Service {
         }
     }
 
+    public class TestAsync extends AsyncTask<Void, Void, Void> {
+
+        private boolean isLibEmpty = true;
+        private boolean rebuildStats = false;
+
+        private ProgressDialog progressDialog;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            currentPlaylist.addAll(generateNewTracks(sessionType));
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+        }
+    }
+
+
     public void playPause() {
-        Log.d(TAG, "playPause()!");
-
         if (!mp.isPlaying()) {
-            Log.d(TAG, "playPause() 1");
-            if (!audioFocus) {
-                // Request audio focus for playback
-                int result = am.requestAudioFocus(mOnAudioFocusChangeListener,
-                        // Use the music stream.
-                        AudioManager.STREAM_MUSIC,
-                        // Request permanent focus.
-                        AudioManager.AUDIOFOCUS_GAIN);
-
-                if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                    audioFocus = true;
-                }
-            }
-
-            if (audioFocus) {
-                Log.d(TAG, "playPause() 2");
-                wasPlaying = false;
-                mp.start();
-
-                mStartTime = System.currentTimeMillis();
-            }
-            Log.d(TAG, "playPause() 3");
+            play();
         } else {
-            Log.d(TAG, "playPause() 4");
+            pause();
+        }
+    }
+
+    /**
+     * already did null checks for mp
+     */
+    public void pause() {
+        if (mp == null) {
+            Log.e(TAG, "mp is null");
+        } else {
             wasPlaying = true;
             mp.pause();
 
@@ -593,7 +602,38 @@ public class MediaPlayerService extends Service {
 //            editor.putInt("trackIndex", trackIndex);
 //            editor.putInt("trackPosition", mp.getCurrentPosition());
 //            editor.commit();
-            Log.d(TAG, "playPause() 5");
+        }
+    }
+
+    public void play() {
+        if (mp == null) {
+            Log.e(TAG, "mp is null");
+        } else {
+            if (!audioFocus) {
+                // Request audio focus for playback
+                int result = am.requestAudioFocus(mOnAudioFocusChangeListener,
+                        // Use the music stream.
+                        AudioManager.STREAM_MUSIC,
+                        // Request permanent focus.
+                        AudioManager.AUDIOFOCUS_GAIN);
+
+                if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                    audioFocus = true;
+                }
+            }
+
+            if (audioFocus) {
+                wasPlaying = false;
+
+                if (currentTrack == null) {
+                    Log.e(TAG, "there is no songs loaded");
+
+                    prepNextSong();
+                } else {
+                    mp.start();
+                    mStartTime = System.currentTimeMillis();
+                }
+            }
         }
     }
 

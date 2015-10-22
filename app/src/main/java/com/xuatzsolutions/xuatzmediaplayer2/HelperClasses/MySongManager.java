@@ -3,6 +3,7 @@ package com.xuatzsolutions.xuatzmediaplayer2.HelperClasses;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.MergeCursor;
 import android.provider.MediaStore;
 import android.util.Log;
 
@@ -54,10 +55,6 @@ public class MySongManager {
         String orderBy = MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
 
         ContentResolver contentResolver = context.getContentResolver();
-
-        Cursor cursor = contentResolver.query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, TRACK_COLUMNS,
-                where, selectionArgs, orderBy);
 
         Cursor[] cursors = new Cursor[2];
         cursors[0] = contentResolver.query(
