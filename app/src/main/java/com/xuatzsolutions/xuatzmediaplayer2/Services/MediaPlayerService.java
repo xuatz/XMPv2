@@ -136,12 +136,15 @@ public class MediaPlayerService extends Service {
     public void onCreate() {
         super.onCreate();
 
+        android_id = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+
         currentPlaylist = new ArrayList<Track>();
 
         realm = Realm.getInstance(Migration.getConfig(this));
-        tracks = realm.where(Track.class).findAll();
-
-        android_id = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        tracks = realm.where(Track.class)
+                .equalTo("isHidden", false)
+                .equalTo("isAvailable", true)
+                .findAll();
 
         mOnAudioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
             @Override
@@ -187,6 +190,8 @@ public class MediaPlayerService extends Service {
             @Override
             public void onPrepared(MediaPlayer mp) {
                 sendBroadcast(new Intent().setAction(INTENT_MP_READY));
+
+                Log.d(TAG, "mp.onPrepared!");
 
                 mStartTime = System.currentTimeMillis();
                 accumulatedPlaytimeForThisTrack = 0;
@@ -241,6 +246,31 @@ public class MediaPlayerService extends Service {
                     case INTENT_THERE_IS_NO_SONGS:
                         stopMediaPlayerService();
                         break;
+                    case AudioManager.ACTION_AUDIO_BECOMING_NOISY:
+                        //TODO might have to handle some shit here
+                        if (mp != null) {
+                            if(mp.isPlaying()) {
+                                playPause();
+                            }
+                        }
+                        break;
+                    case android.content.Intent.ACTION_HEADSET_PLUG:
+                        int state = intent.getIntExtra("state", 4);
+                        if(state == 0){
+                            //unplugged
+                        }else if(state == 1){
+                            //plugged in
+                            if (mp != null) {
+                                if(!mp.isPlaying()) {
+                                    if (currentTrack != null) {
+                                        playPause();
+                                    }
+                                }
+                            }
+                        }else {
+                            //others??
+                        }
+                        break;
                 }
             }
         };
@@ -252,7 +282,8 @@ public class MediaPlayerService extends Service {
         intentFilter.addAction(MainActivity.INTENT_DISLIKED);
         intentFilter.addAction(INTENT_DISMISS_NOTIFICATION);
         intentFilter.addAction(INTENT_THERE_IS_NO_SONGS);
-
+        intentFilter.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+        intentFilter.addAction(android.content.Intent.ACTION_HEADSET_PLUG);
         //intentFilter.addAction(INTENT_SESSION_TRACKS_GENERATED);
 
         registerReceiver(mReceiver, intentFilter);
@@ -268,7 +299,7 @@ public class MediaPlayerService extends Service {
         Log.d(TAG, "generateNewTracks()");
 
         List<Track> tempList = new ArrayList<Track>();
-        List<Track> tempTrackList = new ArrayList<Track>(realm.where(Track.class).findAll());
+        List<Track> tempTrackList = new ArrayList<Track>(tracks);
 
         Log.d(TAG, "tempTrackList.isEmpty(): " + tempTrackList.isEmpty());
         if (!tempTrackList.isEmpty()) {

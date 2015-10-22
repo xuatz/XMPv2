@@ -40,6 +40,11 @@ public class Track extends RealmObject {
 
     //============
 
+    //added in v1 schema
+    private boolean isAvailable = true;
+    private boolean isHidden = false;
+    private int halfPlayedCount = 0;
+
     public Track() {
     }
 
@@ -226,5 +231,29 @@ public class Track extends RealmObject {
 
     public void setAlbumKey(String albumKey) {
         this.albumKey = albumKey;
+    }
+
+    public boolean isAvailable() {
+        return isAvailable;
+    }
+
+    public void setIsAvailable(boolean isAvailable) {
+        this.isAvailable = isAvailable;
+    }
+
+    public boolean isHidden() {
+        return isHidden;
+    }
+
+    public void setIsHidden(boolean isHidden) {
+        this.isHidden = isHidden;
+    }
+
+    public int getHalfPlayedCount() {
+        return halfPlayedCount;
+    }
+
+    public void setHalfPlayedCount(int halfPlayedCount) {
+        this.halfPlayedCount = halfPlayedCount;
     }
 }

@@ -22,14 +22,12 @@ import android.widget.Toast;
 import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
-import com.xuatzsolutions.xuatzmediaplayer2.Models.TrackStats;
 import com.xuatzsolutions.xuatzmediaplayer2.Services.MediaPlayerService;
 
 import java.util.Calendar;
 
 import hirondelle.date4j.DateTime;
 import io.realm.Realm;
-import io.realm.RealmQuery;
 import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
@@ -51,7 +49,7 @@ public class MainActivity extends Activity {
     private IntentFilter intentFilter;
 
     private TextView tvCurrentTrackTitle;
-    private TextView tvCurrentTrackComCount;
+    private TextView tvCurrentTrackPlayCount;
     private TextView tvCurrentTrackSkipCount;
     private TextView tvCurrentTrackLikeCount;
     private TextView tvCurrentTrackDislikeCount;
@@ -66,17 +64,30 @@ public class MainActivity extends Activity {
     private Button btnDisliked;
     private ProgressDialog pdNewSession;
 
+    boolean rebuildLib = false;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        Log.d(TAG, "onSaveInstanceState() start");
+
+        outState.putBoolean("noNeedRebuildLib", true);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Log.d(TAG, "onCreate() start");
 
         realm = Realm.getInstance(Migration.getConfig(this)); // Automatically run migration if needed
 
         //=====================================
 
         tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
-        tvCurrentTrackComCount = (TextView) findViewById(R.id.tvCurrentTrackComCount);
+        tvCurrentTrackPlayCount = (TextView) findViewById(R.id.tv_current_track_play_count);
         tvCurrentTrackSkipCount = (TextView) findViewById(R.id.tvCurrentTrackSkipCount);
         //tvCurrentTrackSelectCount = (TextView) findViewById(R.id.tvCurrentTrackSelectCount);
         tvCurrentTrackLikeCount = (TextView) findViewById(R.id.tvCurrentTrackLikeCount);
@@ -162,7 +173,21 @@ public class MainActivity extends Activity {
         intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED);
         intentFilter.addAction(MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION);
 
-        new PopulateSongLibrary().execute();
+        rebuildLib = false;
+        Log.d(TAG, "huat 1");
+        if (savedInstanceState != null) {
+            Log.d(TAG, "huat 2");
+            if (savedInstanceState.getBoolean("noNeedRebuildLib")) {
+                Log.d(TAG, "huat 3");
+            } else {
+                Log.d(TAG, "huat 4");
+                rebuildLib = true;
+            }
+        } else {
+            Log.d(TAG, "huat 5");
+            rebuildLib = true;
+        }
+        Log.d(TAG, "huat 6");
     }
 
     @Override
@@ -176,6 +201,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume() start");
 
         isActivityVisible = true;
 
@@ -192,6 +218,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        Log.d(TAG, "onPause() start");
+
         isActivityVisible = false;
         updateScreenAndNotification();
     }
@@ -211,7 +239,9 @@ public class MainActivity extends Activity {
             if (mService.getCurrentTrack() != null) {
                 tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
 
-                tvCurrentTrackComCount.setText(""+mService.getCurrentTrack().getCompletedCount());
+                int playCount = mService.getCurrentTrack().getCompletedCount() + mService.getCurrentTrack().getHalfPlayedCount();
+                tvCurrentTrackPlayCount.setText("" + playCount);
+
                 tvCurrentTrackSkipCount.setText(""+mService.getCurrentTrack().getSkippedCount());
                 //tvCurrentTrackSelectCount.setText(selected);
                 tvCurrentTrackLikeCount.setText(""+mService.getCurrentTrack().getLikedCount());
@@ -252,14 +282,16 @@ public class MainActivity extends Activity {
             mService = binder.getService();
             mBound = true;
 
-            if (!mService.isPlaying()) {
+            if (mService.isPlaying()) {
+                updateScreenAndNotification();
+            } else {
                 if (mService.getCurrentTrack() != null) {
                     updateScreenAndNotification();
                 } else {
-                    mService.startSession(MediaPlayerService.SESSION_TYPE_GENERAL);
+                    if (rebuildLib) {
+                        new PopulateSongLibrary().execute();
+                    }
                 }
-            } else {
-                updateScreenAndNotification();
             }
         }
 
@@ -336,16 +368,18 @@ public class MainActivity extends Activity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            RealmResults<Track> res = realm.where(Track.class).findAll();
+
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setMessage("Loading...");
+            progressDialog.setIndeterminate(false);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            RealmResults<Track> res = realm.where(Track.class).equalTo("isHidden", false).findAll();
 
             if (res.size() == 0) {
                 isLibEmpty = true;
-                progressDialog = new ProgressDialog(MainActivity.this);
-                progressDialog.setMessage("Loading...");
-                progressDialog.setIndeterminate(false);
-                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progressDialog.setCancelable(false);
-                progressDialog.show();
             } else {
                 isLibEmpty = false;
 
@@ -356,7 +390,7 @@ public class MainActivity extends Activity {
                         DateTime now = DateTime.now(Calendar.getInstance().getTimeZone());
                         DateTime lastUpdated = new DateTime(res.first().getStatsUpdatedAt());
 
-                        rebuildStats = now.numSecondsFrom(lastUpdated) > 60; //XZ: might change this to daily
+                        rebuildStats = now.numSecondsFrom(lastUpdated) > 100; //XZ: might change this to daily
                     }
                 }
             }
@@ -372,21 +406,21 @@ public class MainActivity extends Activity {
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             if (isLibEmpty) {
-                progressDialog.dismiss();
                 isLibEmpty = false;
             }
 
-            if(mBound) {
-                mService.startSession(MediaPlayerService.SESSION_TYPE_GENERAL);
-            }
+            progressDialog.dismiss();
         }
     }
 
     public void initService() {
         Log.d(TAG, "initService()");
-        Intent intent = new Intent(this, MediaPlayerService.class);
-        startService(intent);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+
+        if(!mBound) {
+            Intent intent = new Intent(this, MediaPlayerService.class);
+            startService(intent);
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        }
     }
 
     private void showShortToast(String s) {

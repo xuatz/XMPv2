@@ -17,9 +17,6 @@ package com.xuatzsolutions.xuatzmediaplayer2.Models;/*
 import android.content.Context;
 import android.util.Log;
 
-import java.util.HashMap;
-
-import hirondelle.date4j.DateTime;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmMigration;
@@ -37,7 +34,7 @@ import io.realm.internal.Table;
 public class Migration implements RealmMigration {
 
     private static final String TAG = "Migration";
-    static int currentVersion = 0;
+    static int currentVersion = 1;
 
     public static RealmConfiguration getConfig(Context context) {
         return new RealmConfiguration.Builder(context)
@@ -51,6 +48,18 @@ public class Migration implements RealmMigration {
         Log.d(TAG, "execute() start");
 
         if (version == 0) {
+            Table trackTable = realm.getTable(Track.class);
+
+            long i1 = trackTable.addColumn(ColumnType.BOOLEAN, "isAvailable");
+            long i2 = trackTable.addColumn(ColumnType.BOOLEAN, "isHidden");
+            long i3 = trackTable.addColumn(ColumnType.INTEGER, "halfPlayedCount");
+
+            for (int i = 0; i < trackTable.size(); i++) {
+                trackTable.setBoolean(i1, i, false);
+                trackTable.setBoolean(i2, i, false);
+                trackTable.setLong(i3, i, 0);
+            }
+
             version++;
         }
 
