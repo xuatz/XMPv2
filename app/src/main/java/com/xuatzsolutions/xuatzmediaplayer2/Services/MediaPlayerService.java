@@ -32,6 +32,7 @@ import java.util.List;
 
 import hirondelle.date4j.DateTime;
 import io.realm.Realm;
+import io.realm.RealmChangeListener;
 import io.realm.RealmResults;
 
 /**
@@ -476,23 +477,74 @@ public class MediaPlayerService extends Service {
     public void startSession(int sessionType) {
         Log.d(TAG, "startSession()");
 
-        //TODO might wanna consider to fetch fresh tracks in future
+        Log.d(TAG, "test part 1");
 
-        currentPlaylist.clear();
-        globalTrackNo = 0;
         this.sessionType = sessionType;
 
-        /*
-        TODO it shld be an async task in future
-        refer to https://github.com/realm/realm-java/issues/1208
-         */
-        currentPlaylist.addAll(generateNewTracks(sessionType));
+        new TestAsync2().execute();
 
-        //sendBroadcast(new Intent(INTENT_SESSION_TRACKS_GENERATING));
-        //sendBroadcast(new Intent().setAction(INTENT_SESSION_TRACKS_GENERATED));
-        prepNextSong();
+        Log.d(TAG, "test part END");
 
-        showNotification();
+    }
+
+    public class TestAsync2 extends AsyncTask<Void, Void, Void> {
+
+        private boolean isLibEmpty = true;
+        private boolean rebuildStats = false;
+
+        private ProgressDialog progressDialog;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            progressDialog = new ProgressDialog(getApplicationContext());
+            progressDialog.setMessage("Loading...");
+            progressDialog.setIndeterminate(false);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            RealmResults<Track> test = null;
+
+            RealmChangeListener reamlListener = new RealmChangeListener() {
+                @Override
+                public void onChange() {
+                    Log.d(TAG, "test part 3");
+                    Log.d(TAG, "whats ahppening");
+                }
+            };
+
+            test = realm.where(Track.class)
+                    .equalTo("isHidden", false)
+                    .equalTo("isAvailable", true)
+                    .findAllAsync();
+
+            test.addChangeListener(reamlListener);
+
+            Log.d(TAG, "test part 2: " + test.size());
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            Log.d(TAG, "test part 4");
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void res) {
+            super.onPostExecute(res);
+            Log.d(TAG, "test part 5");
+
+//            currentPlaylist.clear();
+//            globalTrackNo = 0;
+//
+//            currentPlaylist.addAll(test);
+//
+//            //sendBroadcast(new Intent(INTENT_SESSION_TRACKS_GENERATING));
+//            //sendBroadcast(new Intent().setAction(INTENT_SESSION_TRACKS_GENERATED));
+//            prepNextSong();
+//            showNotification();
+        }
     }
 
     private void checkIfRegisterAsSkip() {
@@ -535,14 +587,16 @@ public class MediaPlayerService extends Service {
             int i = Math.max(currentPlaylist.size() - 5, globalTrackNo);
 
             if (currentPlaylist.size() - 5 <= globalTrackNo) {
-                new TestAsync().execute();
-                //currentPlaylist.addAll(generateNewTracks(sessionType));
+                //TODO async
+                currentPlaylist.addAll(generateNewTracks(sessionType));
             }
             return true;
         } else {
             return false;
         }
     }
+
+
 
     public class TestAsync extends AsyncTask<Void, Void, Void> {
 
