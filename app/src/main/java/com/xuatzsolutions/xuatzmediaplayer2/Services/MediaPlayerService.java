@@ -301,9 +301,6 @@ public class MediaPlayerService extends Service {
         Log.d(TAG, "tempTrackList.isEmpty(): " + tempTrackList.isEmpty());
         if (!tempTrackList.isEmpty()) {
             switch (sessionType) {
-                case SESSION_TYPE_GENERAL:
-                    tempList = getGeneralPlaylist(tempTrackList);
-                    break;
                 case SESSION_TYPE_NEW:
                     tempList = getNewPlaylist(tempTrackList);
                     break;
@@ -313,6 +310,12 @@ public class MediaPlayerService extends Service {
                 case SESSION_TYPE_TRASH:
                     tempList = getTrashPlaylist(tempTrackList);
                     break;
+                case SESSION_TYPE_GENERAL:
+                    //fall thru
+                default:
+                    tempList = getGeneralPlaylist(tempTrackList);
+                    break;
+
             }
 
             if (sessionType != SESSION_TYPE_GENERAL) {
@@ -476,75 +479,16 @@ public class MediaPlayerService extends Service {
 
     public void startSession(int sessionType) {
         Log.d(TAG, "startSession()");
-
-        Log.d(TAG, "test part 1");
-
         this.sessionType = sessionType;
 
-        new TestAsync2().execute();
+        List<Track> newTracks = generateNewTracks(sessionType);
 
-        Log.d(TAG, "test part END");
+        currentPlaylist.clear();
+        globalTrackNo = 0;
+        currentPlaylist.addAll(newTracks);
 
-    }
-
-    public class TestAsync2 extends AsyncTask<Void, Void, Void> {
-
-        private boolean isLibEmpty = true;
-        private boolean rebuildStats = false;
-
-        private ProgressDialog progressDialog;
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            progressDialog = new ProgressDialog(getApplicationContext());
-            progressDialog.setMessage("Loading...");
-            progressDialog.setIndeterminate(false);
-            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-            progressDialog.setCancelable(false);
-            progressDialog.show();
-
-            RealmResults<Track> test = null;
-
-            RealmChangeListener reamlListener = new RealmChangeListener() {
-                @Override
-                public void onChange() {
-                    Log.d(TAG, "test part 3");
-                    Log.d(TAG, "whats ahppening");
-                }
-            };
-
-            test = realm.where(Track.class)
-                    .equalTo("isHidden", false)
-                    .equalTo("isAvailable", true)
-                    .findAllAsync();
-
-            test.addChangeListener(reamlListener);
-
-            Log.d(TAG, "test part 2: " + test.size());
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            Log.d(TAG, "test part 4");
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void res) {
-            super.onPostExecute(res);
-            Log.d(TAG, "test part 5");
-
-//            currentPlaylist.clear();
-//            globalTrackNo = 0;
-//
-//            currentPlaylist.addAll(test);
-//
-//            //sendBroadcast(new Intent(INTENT_SESSION_TRACKS_GENERATING));
-//            //sendBroadcast(new Intent().setAction(INTENT_SESSION_TRACKS_GENERATED));
-//            prepNextSong();
-//            showNotification();
-        }
+        prepNextSong();
+        showNotification();
     }
 
     private void checkIfRegisterAsSkip() {
@@ -593,32 +537,6 @@ public class MediaPlayerService extends Service {
             return true;
         } else {
             return false;
-        }
-    }
-
-
-
-    public class TestAsync extends AsyncTask<Void, Void, Void> {
-
-        private boolean isLibEmpty = true;
-        private boolean rebuildStats = false;
-
-        private ProgressDialog progressDialog;
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            currentPlaylist.addAll(generateNewTracks(sessionType));
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void result) {
-            super.onPostExecute(result);
         }
     }
 
