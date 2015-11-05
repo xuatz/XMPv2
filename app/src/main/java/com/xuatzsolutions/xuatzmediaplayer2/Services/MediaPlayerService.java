@@ -520,6 +520,8 @@ public class MediaPlayerService extends Service {
         if (currentPlaylist.size() > 0) {
             currentTrack = currentPlaylist.get(globalTrackNo++);
 
+            MySongManager.rebuildStats(this, currentTrack.getLocal_id());
+
             try {
                 mp.setDataSource(currentTrack.getPath());
                 mp.prepare();

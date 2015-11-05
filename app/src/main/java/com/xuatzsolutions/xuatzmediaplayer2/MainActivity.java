@@ -152,6 +152,13 @@ public class MainActivity extends Activity {
                 if(mService.getCurrentTrack() != null) {
                     showShortToast("This song rocks man!");
                     sendBroadcast(new Intent().setAction(INTENT_LIKED));
+
+                    try {
+                        int likeCount = Integer.parseInt(tvCurrentTrackLikeCount.getText().toString());
+                        tvCurrentTrackLikeCount.setText("" + ++likeCount);
+                    } catch (Exception e) {
+                        //do nothing, this is just value adding
+                    }
                 }
             }
         });
