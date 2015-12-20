@@ -116,17 +116,17 @@ public class MainActivity extends AppCompatActivity {
 
                 switch (id) {
                     case R.id.nav_new_bill:
-                        fragment = new BillCreateFragment();
+                        fragment = new Fragment();
                         toolbar.setTitle("Create New Bill");
                         break;
                     case R.id.nav_balance:
-                        fragment = new BalanceFragment();
+                        fragment = new Fragment();
                         toolbar.setTitle("Balance");
                         break;
                 }
 
                 FragmentManager fragmentManager = getSupportFragmentManager();
-                fragmentManager.beginTransaction().replace(R.id.frame_test, fragment).commit();
+                fragmentManager.beginTransaction().replace(R.id.frame_content_main, fragment).commit();
 
                 DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
                 drawer.closeDrawer(GravityCompat.START);
