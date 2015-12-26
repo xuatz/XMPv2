@@ -1,6 +1,5 @@
 package com.xuatzsolutions.xuatzmediaplayer2;
 
-import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.ProgressDialog;
@@ -13,20 +12,19 @@ import android.content.ServiceConnection;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.design.widget.NavigationView;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,7 +40,7 @@ import hirondelle.date4j.DateTime;
 import io.realm.Realm;
 import io.realm.RealmResults;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
     class NavItem {
         String mTitle;
@@ -109,12 +107,9 @@ public class MainActivity extends Activity {
 
     private static String TAG = MainActivity.class.getSimpleName();
 
-    ListView mDrawerList;
-    RelativeLayout mDrawerPane;
+    NavigationView mDrawerPane;
     private ActionBarDrawerToggle mDrawerToggle;
     private DrawerLayout mDrawerLayout;
-
-    ArrayList<NavItem> mNavItems = new ArrayList<NavItem>();
 
     /*
     * Called when a particular item from the navigation drawer
@@ -128,8 +123,7 @@ public class MainActivity extends Activity {
                 .replace(R.id.mainContent, fragment)
                 .commit();
 
-        mDrawerList.setItemChecked(position, true);
-        setTitle(mNavItems.get(position).mTitle);
+        setTitle("Random Title");
 
         // Close the drawer
         mDrawerLayout.closeDrawer(mDrawerPane);
@@ -145,27 +139,34 @@ public class MainActivity extends Activity {
 
         //=====================================
 
-        mNavItems.add(new NavItem("Home", "Meetup destination", android.R.drawable.ic_popup_disk_full));
-        mNavItems.add(new NavItem("Preferences", "Change your preferences", android.R.drawable.ic_dialog_alert));
-        mNavItems.add(new NavItem("About", "Get to know about us", android.R.drawable.ic_input_get));
         //mNavItems.add(new NavItem("About", "Get to know about us", R.drawable.ic_action_about)); -- i use android stock images for now, replace with relevant images in future in the res/drawable folder
 
         // DrawerLayout
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
 
         // Populate the Navigtion Drawer with options
-        mDrawerPane = (RelativeLayout) findViewById(R.id.drawerPane);
-        mDrawerList = (ListView) findViewById(R.id.navList);
-        DrawerListAdapter adapter = new DrawerListAdapter(this, mNavItems);
-        mDrawerList.setAdapter(adapter);
+        mDrawerPane = (NavigationView) findViewById(R.id.nav_view);
 
-        // Drawer Item click listeners
-        mDrawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open, R.string.drawer_close) {
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                selectItemFromDrawer(position);
+            public void onDrawerOpened(View drawerView) {
+                super.onDrawerOpened(drawerView);
+                invalidateOptionsMenu();
             }
-        });
+
+            @Override
+            public void onDrawerClosed(View drawerView) {
+                super.onDrawerClosed(drawerView);
+                Log.d(TAG, "onDrawerClosed: " + getTitle());
+                invalidateOptionsMenu();
+            }
+        };
+
+        mDrawerLayout.setDrawerListener(mDrawerToggle);
+
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+        //selectItemFromDrawer(position);
 
         //=======================
 
@@ -449,11 +450,24 @@ public class MainActivity extends Activity {
         return true;
     }
 
+//    // Called when invalidateOptionsMenu() is invoked
+//    public boolean onPrepareOptionsMenu(Menu menu) {
+//        // If the nav drawer is open, hide action items related to the content view
+//        boolean drawerOpen = mDrawerLayout.isDrawerOpen(mDrawerList);
+//        menu.findItem(R.id.action_search).setVisible(!drawerOpen);
+//        return super.onPrepareOptionsMenu(menu);
+//    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
+
+        if (mDrawerToggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+
         int id = item.getItemId();
 
         switch (id) {
@@ -473,9 +487,12 @@ public class MainActivity extends Activity {
                 //mService.startSession(MediaPlayerService.SESSION_TYPE_TRASH);
                 doSomething();
                 return true;
+            case R.id.nav_menu_library:
+                selectItemFromDrawer(1);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
-
-        return super.onOptionsItemSelected(item);
     }
 
     private void doSomething() {
