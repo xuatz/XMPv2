@@ -1,6 +1,8 @@
 package com.xuatzsolutions.xuatzmediaplayer2;
 
 import android.app.Activity;
+import android.app.Fragment;
+import android.app.FragmentManager;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -11,11 +13,20 @@ import android.content.ServiceConnection;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -24,6 +35,7 @@ import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Services.MediaPlayerService;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 
 import hirondelle.date4j.DateTime;
@@ -32,12 +44,253 @@ import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
 
+    class NavItem {
+        String mTitle;
+        String mSubtitle;
+        int mIcon;
+
+        public NavItem(String title, String subtitle, int icon) {
+            mTitle = title;
+            mSubtitle = subtitle;
+            mIcon = icon;
+        }
+    }
+
+    class DrawerListAdapter extends BaseAdapter {
+
+        Context mContext;
+        ArrayList<NavItem> mNavItems;
+
+        public DrawerListAdapter(Context context, ArrayList<NavItem> navItems) {
+            mContext = context;
+            mNavItems = navItems;
+        }
+
+        @Override
+        public int getCount() {
+            return mNavItems.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return mNavItems.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return 0;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View view;
+
+            if (convertView == null) {
+                LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                view = inflater.inflate(R.layout.drawer_item, null);
+            }
+            else {
+                view = convertView;
+            }
+
+            TextView titleView = (TextView) view.findViewById(R.id.title);
+            TextView subtitleView = (TextView) view.findViewById(R.id.subTitle);
+            ImageView iconView = (ImageView) view.findViewById(R.id.icon);
+
+            titleView.setText( mNavItems.get(position).mTitle );
+            subtitleView.setText( mNavItems.get(position).mSubtitle );
+            iconView.setImageResource(mNavItems.get(position).mIcon);
+
+            return view;
+        }
+    }
+
+    //=====================
+
+    private static String TAG = MainActivity.class.getSimpleName();
+
+    ListView mDrawerList;
+    RelativeLayout mDrawerPane;
+    private ActionBarDrawerToggle mDrawerToggle;
+    private DrawerLayout mDrawerLayout;
+
+    ArrayList<NavItem> mNavItems = new ArrayList<NavItem>();
+
+    /*
+    * Called when a particular item from the navigation drawer
+    * is selected.
+    * */
+    private void selectItemFromDrawer(int position) {
+        Fragment fragment = new PreferencesFragment();
+
+        FragmentManager fragmentManager = getFragmentManager();
+        fragmentManager.beginTransaction()
+                .replace(R.id.mainContent, fragment)
+                .commit();
+
+        mDrawerList.setItemChecked(position, true);
+        setTitle(mNavItems.get(position).mTitle);
+
+        // Close the drawer
+        mDrawerLayout.closeDrawer(mDrawerPane);
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        Log.d(TAG, "onCreate() start");
+        realm = Realm.getInstance(Migration.getConfig(this)); // Automatically run migration if needed
+
+        //=====================================
+
+        mNavItems.add(new NavItem("Home", "Meetup destination", android.R.drawable.ic_popup_disk_full));
+        mNavItems.add(new NavItem("Preferences", "Change your preferences", android.R.drawable.ic_dialog_alert));
+        mNavItems.add(new NavItem("About", "Get to know about us", android.R.drawable.ic_input_get));
+        //mNavItems.add(new NavItem("About", "Get to know about us", R.drawable.ic_action_about)); -- i use android stock images for now, replace with relevant images in future in the res/drawable folder
+
+        // DrawerLayout
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
+
+        // Populate the Navigtion Drawer with options
+        mDrawerPane = (RelativeLayout) findViewById(R.id.drawerPane);
+        mDrawerList = (ListView) findViewById(R.id.navList);
+        DrawerListAdapter adapter = new DrawerListAdapter(this, mNavItems);
+        mDrawerList.setAdapter(adapter);
+
+        // Drawer Item click listeners
+        mDrawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                selectItemFromDrawer(position);
+            }
+        });
+
+        //=======================
+
+//        tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
+//        tvCurrentTrackPlayCount = (TextView) findViewById(R.id.tv_current_track_play_count);
+//        tvCurrentTrackSkipCount = (TextView) findViewById(R.id.tvCurrentTrackSkipCount);
+//        //tvCurrentTrackSelectCount = (TextView) findViewById(R.id.tvCurrentTrackSelectCount);
+//        tvCurrentTrackLikeCount = (TextView) findViewById(R.id.tvCurrentTrackLikeCount);
+//        tvCurrentTrackDislikeCount = (TextView) findViewById(R.id.tvCurrentTrackDislikeCount);
+//
+//        tvCurrentSessionType = (TextView) findViewById(R.id.tv_session_type);
+//        tvCurrentTrackArtist = (TextView) findViewById(R.id.tv_artist);
+//        tvCurrentTrackAlbum = (TextView) findViewById(R.id.tv_album);
+//
+//        mReceiver = new BroadcastReceiver() {
+//            @Override
+//            public void onReceive(Context context, Intent intent) {
+//                switch (intent.getAction()) {
+//                    case MediaPlayerService.INTENT_MP_READY:
+//                        Log.d(TAG, "onReceive() INTENT_MP_READY");
+//
+//                        if (mService.getCurrentTrack() != null) {
+//                            updateScreenAndNotification();
+//                        }
+//
+//                        break;
+//                    case MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING:
+//                        Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATING :mytest");
+//                        pdNewSession = new ProgressDialog(MainActivity.this);
+//                        pdNewSession.setMessage("Generating Session Songs...");
+//                        pdNewSession.setIndeterminate(false);
+//                        pdNewSession.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+//                        pdNewSession.setCancelable(false);
+//                        pdNewSession.show();
+//                        break;
+//                    case MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED:
+//                        Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATED :mytest");
+//                        pdNewSession.dismiss();
+//                        break;
+//                    case MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION:
+//                        showShortToast("There is not enough data! Populating generic playlist!");
+//                        break;
+//                }
+//            }
+//        };
+//
+//        btnPlayPause = (Button) findViewById(R.id.btn_play_pause);
+//        btnPlayPause.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                sendBroadcast(new Intent().setAction(INTENT_PLAY_PAUSE));
+//            }
+//        });
+//
+//        btnNext = (Button) findViewById(R.id.btn_next);
+//        btnNext.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                sendBroadcast(new Intent().setAction(INTENT_NEXT));
+//            }
+//        });
+//
+//        btnLiked = (Button) findViewById(R.id.btn_like);
+//        btnLiked.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                if (mService.getCurrentTrack() != null) {
+//                    showShortToast("This song rocks man!");
+//                    sendBroadcast(new Intent().setAction(INTENT_LIKED));
+//
+//                    try {
+//                        int likeCount = Integer.parseInt(tvCurrentTrackLikeCount.getText().toString());
+//                        tvCurrentTrackLikeCount.setText("" + ++likeCount);
+//                    } catch (Exception e) {
+//                        //do nothing, this is just value adding
+//                    }
+//                }
+//            }
+//        });
+//
+//        btnDisliked = (Button) findViewById(R.id.btn_dislike);
+//        btnDisliked.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                if (mService.getCurrentTrack() != null) {
+//                    showShortToast("This song... cui...!");
+//                    sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
+//                }
+//            }
+//        });
+//
+//        intentFilter = new IntentFilter();
+//        intentFilter.addAction(MediaPlayerService.INTENT_MP_READY);
+//        intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING);
+//        intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED);
+//        intentFilter.addAction(MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION);
+//
+//        rebuildLib = false;
+//        Log.d(TAG, "huat 1");
+//        if (savedInstanceState != null) {
+//            Log.d(TAG, "huat 2");
+//            if (savedInstanceState.getBoolean("noNeedRebuildLib")) {
+//                Log.d(TAG, "huat 3");
+//            } else {
+//                Log.d(TAG, "huat 4");
+//                rebuildLib = true;
+//            }
+//        } else {
+//            Log.d(TAG, "huat 5");
+//            rebuildLib = true;
+//        }
+//        Log.d(TAG, "huat 6");
+
+    }
+
+
+
+
+
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MainActivity";
     public static final String INTENT_PLAY_PAUSE = INTENT_BASE_NAME + ".PLAY_PAUSE_CLICKED";
     public static final String INTENT_NEXT = INTENT_BASE_NAME + ".NEXT_CLICKED";
-    public static final String INTENT_LIKED =INTENT_BASE_NAME + ".LIKED";
+    public static final String INTENT_LIKED = INTENT_BASE_NAME + ".LIKED";
     public static final String INTENT_DISLIKED = INTENT_BASE_NAME + ".DISLIKED";
-    private final String TAG = "MainActivity";
+
 
     MediaPlayerService mService;
     boolean mBound = false;
@@ -73,128 +326,6 @@ public class MainActivity extends Activity {
         Log.d(TAG, "onSaveInstanceState() start");
 
         outState.putBoolean("noNeedRebuildLib", true);
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        Log.d(TAG, "onCreate() start");
-
-        realm = Realm.getInstance(Migration.getConfig(this)); // Automatically run migration if needed
-
-        //=====================================
-
-        tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
-        tvCurrentTrackPlayCount = (TextView) findViewById(R.id.tv_current_track_play_count);
-        tvCurrentTrackSkipCount = (TextView) findViewById(R.id.tvCurrentTrackSkipCount);
-        //tvCurrentTrackSelectCount = (TextView) findViewById(R.id.tvCurrentTrackSelectCount);
-        tvCurrentTrackLikeCount = (TextView) findViewById(R.id.tvCurrentTrackLikeCount);
-        tvCurrentTrackDislikeCount = (TextView) findViewById(R.id.tvCurrentTrackDislikeCount);
-
-        tvCurrentSessionType = (TextView) findViewById(R.id.tv_session_type);
-        tvCurrentTrackArtist = (TextView) findViewById(R.id.tv_artist);
-        tvCurrentTrackAlbum = (TextView) findViewById(R.id.tv_album);
-
-        mReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                switch(intent.getAction()) {
-                    case MediaPlayerService.INTENT_MP_READY:
-                        Log.d(TAG, "onReceive() INTENT_MP_READY");
-
-                        if (mService.getCurrentTrack() != null) {
-                            updateScreenAndNotification();
-                        }
-
-                        break;
-                    case MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING:
-                        Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATING :mytest");
-                        pdNewSession = new ProgressDialog(MainActivity.this);
-                        pdNewSession.setMessage("Generating Session Songs...");
-                        pdNewSession.setIndeterminate(false);
-                        pdNewSession.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                        pdNewSession.setCancelable(false);
-                        pdNewSession.show();
-                        break;
-                    case MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED:
-                        Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATED :mytest");
-                        pdNewSession.dismiss();
-                        break;
-                    case MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION:
-                        showShortToast("There is not enough data! Populating generic playlist!");
-                        break;
-                }
-            }
-        };
-
-        btnPlayPause = (Button) findViewById(R.id.btn_play_pause);
-        btnPlayPause.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendBroadcast(new Intent().setAction(INTENT_PLAY_PAUSE));
-            }
-        });
-
-        btnNext = (Button) findViewById(R.id.btn_next);
-        btnNext.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendBroadcast(new Intent().setAction(INTENT_NEXT));
-            }
-        });
-
-        btnLiked = (Button) findViewById(R.id.btn_like);
-        btnLiked.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(mService.getCurrentTrack() != null) {
-                    showShortToast("This song rocks man!");
-                    sendBroadcast(new Intent().setAction(INTENT_LIKED));
-
-                    try {
-                        int likeCount = Integer.parseInt(tvCurrentTrackLikeCount.getText().toString());
-                        tvCurrentTrackLikeCount.setText("" + ++likeCount);
-                    } catch (Exception e) {
-                        //do nothing, this is just value adding
-                    }
-                }
-            }
-        });
-
-        btnDisliked = (Button) findViewById(R.id.btn_dislike);
-        btnDisliked.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(mService.getCurrentTrack() != null) {
-                    showShortToast("This song... cui...!");
-                    sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
-                }
-            }
-        });
-
-        intentFilter = new IntentFilter();
-        intentFilter.addAction(MediaPlayerService.INTENT_MP_READY);
-        intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING);
-        intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED);
-        intentFilter.addAction(MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION);
-
-        rebuildLib = false;
-        Log.d(TAG, "huat 1");
-        if (savedInstanceState != null) {
-            Log.d(TAG, "huat 2");
-            if (savedInstanceState.getBoolean("noNeedRebuildLib")) {
-                Log.d(TAG, "huat 3");
-            } else {
-                Log.d(TAG, "huat 4");
-                rebuildLib = true;
-            }
-        } else {
-            Log.d(TAG, "huat 5");
-            rebuildLib = true;
-        }
-        Log.d(TAG, "huat 6");
     }
 
     @Override
@@ -249,10 +380,10 @@ public class MainActivity extends Activity {
                 int playCount = mService.getCurrentTrack().getCompletedCount() + mService.getCurrentTrack().getHalfPlayedCount();
                 tvCurrentTrackPlayCount.setText("" + playCount);
 
-                tvCurrentTrackSkipCount.setText(""+mService.getCurrentTrack().getSkippedCount());
+                tvCurrentTrackSkipCount.setText("" + mService.getCurrentTrack().getSkippedCount());
                 //tvCurrentTrackSelectCount.setText(selected);
-                tvCurrentTrackLikeCount.setText(""+mService.getCurrentTrack().getLikedCount());
-                tvCurrentTrackDislikeCount.setText(""+mService.getCurrentTrack().getDislikedCount());
+                tvCurrentTrackLikeCount.setText("" + mService.getCurrentTrack().getLikedCount());
+                tvCurrentTrackDislikeCount.setText("" + mService.getCurrentTrack().getDislikedCount());
 
                 tvCurrentSessionType.setText(mService.getSessionTypeString());
                 tvCurrentTrackArtist.setText(mService.getCurrentTrack().getArtist());
@@ -280,7 +411,9 @@ public class MainActivity extends Activity {
         this.unregisterReceiver(mReceiver);
     }
 
-    /** Defines callbacks for service binding, passed to bindService() */
+    /**
+     * Defines callbacks for service binding, passed to bindService()
+     */
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
@@ -423,7 +556,7 @@ public class MainActivity extends Activity {
     public void initService() {
         Log.d(TAG, "initService()");
 
-        if(!mBound) {
+        if (!mBound) {
             Intent intent = new Intent(this, MediaPlayerService.class);
             startService(intent);
             bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
