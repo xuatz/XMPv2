@@ -20,14 +20,17 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.xuatzsolutions.xuatzmediaplayer2.HelperClasses.MySongManager;
+import com.xuatzsolutions.xuatzmediaplayer2.Models.Migration;
 import com.xuatzsolutions.xuatzmediaplayer2.Models.Track;
 import com.xuatzsolutions.xuatzmediaplayer2.Services.MediaPlayerService;
 
+import java.util.Calendar;
+
+import hirondelle.date4j.DateTime;
 import io.realm.Realm;
 import io.realm.RealmResults;
 
 public class MainActivity extends Activity {
-
 
     private static final String INTENT_BASE_NAME = "com.xuatzsolutions.xuatzmediaplayer2.MainActivity";
     public static final String INTENT_PLAY_PAUSE = INTENT_BASE_NAME + ".PLAY_PAUSE_CLICKED";
@@ -38,6 +41,7 @@ public class MainActivity extends Activity {
 
     MediaPlayerService mService;
     boolean mBound = false;
+    boolean isActivityVisible = false;
 
     Realm realm = null;
 
@@ -45,22 +49,53 @@ public class MainActivity extends Activity {
     private IntentFilter intentFilter;
 
     private TextView tvCurrentTrackTitle;
+    private TextView tvCurrentTrackPlayCount;
+    private TextView tvCurrentTrackSkipCount;
+    private TextView tvCurrentTrackLikeCount;
+    private TextView tvCurrentTrackDislikeCount;
+
+    private TextView tvCurrentTrackArtist;
+    private TextView tvCurrentTrackAlbum;
+    private TextView tvCurrentSessionType;
+
     private Button btnPlayPause;
     private Button btnNext;
     private Button btnLiked;
     private Button btnDisliked;
     private ProgressDialog pdNewSession;
 
+    boolean rebuildLib = false;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        Log.d(TAG, "onSaveInstanceState() start");
+
+        outState.putBoolean("noNeedRebuildLib", true);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        realm = Realm.getInstance(MainActivity.this);
+        Log.d(TAG, "onCreate() start");
 
-        new PopulateSongLibrary().execute();
+        realm = Realm.getInstance(Migration.getConfig(this)); // Automatically run migration if needed
+
+        //=====================================
 
         tvCurrentTrackTitle = (TextView) findViewById(R.id.tv_current_song_title);
+        tvCurrentTrackPlayCount = (TextView) findViewById(R.id.tv_current_track_play_count);
+        tvCurrentTrackSkipCount = (TextView) findViewById(R.id.tvCurrentTrackSkipCount);
+        //tvCurrentTrackSelectCount = (TextView) findViewById(R.id.tvCurrentTrackSelectCount);
+        tvCurrentTrackLikeCount = (TextView) findViewById(R.id.tvCurrentTrackLikeCount);
+        tvCurrentTrackDislikeCount = (TextView) findViewById(R.id.tvCurrentTrackDislikeCount);
+
+        tvCurrentSessionType = (TextView) findViewById(R.id.tv_session_type);
+        tvCurrentTrackArtist = (TextView) findViewById(R.id.tv_artist);
+        tvCurrentTrackAlbum = (TextView) findViewById(R.id.tv_album);
 
         mReceiver = new BroadcastReceiver() {
             @Override
@@ -68,10 +103,9 @@ public class MainActivity extends Activity {
                 switch(intent.getAction()) {
                     case MediaPlayerService.INTENT_MP_READY:
                         Log.d(TAG, "onReceive() INTENT_MP_READY");
-                        //updateScreenAndRemoveNotiIfVisible();
 
                         if (mService.getCurrentTrack() != null) {
-                            updateScreen();
+                            updateScreenAndNotification();
                         }
 
                         break;
@@ -88,11 +122,10 @@ public class MainActivity extends Activity {
                         Log.d(TAG, "onReceive() INTENT_SESSION_TRACKS_GENERATED :mytest");
                         pdNewSession.dismiss();
                         break;
+                    case MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION:
+                        showShortToast("There is not enough data! Populating generic playlist!");
+                        break;
                 }
-
-
-
-
             }
         };
 
@@ -116,8 +149,17 @@ public class MainActivity extends Activity {
         btnLiked.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showShortToast("This song rocks man!");
-                sendBroadcast(new Intent().setAction(INTENT_LIKED));
+                if(mService.getCurrentTrack() != null) {
+                    showShortToast("This song rocks man!");
+                    sendBroadcast(new Intent().setAction(INTENT_LIKED));
+
+                    try {
+                        int likeCount = Integer.parseInt(tvCurrentTrackLikeCount.getText().toString());
+                        tvCurrentTrackLikeCount.setText("" + ++likeCount);
+                    } catch (Exception e) {
+                        //do nothing, this is just value adding
+                    }
+                }
             }
         });
 
@@ -125,8 +167,10 @@ public class MainActivity extends Activity {
         btnDisliked.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showShortToast("This song... cui...!");
-                sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
+                if(mService.getCurrentTrack() != null) {
+                    showShortToast("This song... cui...!");
+                    sendBroadcast(new Intent().setAction(INTENT_DISLIKED));
+                }
             }
         });
 
@@ -134,6 +178,23 @@ public class MainActivity extends Activity {
         intentFilter.addAction(MediaPlayerService.INTENT_MP_READY);
         intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATING);
         intentFilter.addAction(MediaPlayerService.INTENT_SESSION_TRACKS_GENERATED);
+        intentFilter.addAction(MediaPlayerService.INTENT_NOT_ENOUGH_DATA_FOR_NON_GENERAL_SESSION);
+
+        rebuildLib = false;
+        Log.d(TAG, "huat 1");
+        if (savedInstanceState != null) {
+            Log.d(TAG, "huat 2");
+            if (savedInstanceState.getBoolean("noNeedRebuildLib")) {
+                Log.d(TAG, "huat 3");
+            } else {
+                Log.d(TAG, "huat 4");
+                rebuildLib = true;
+            }
+        } else {
+            Log.d(TAG, "huat 5");
+            rebuildLib = true;
+        }
+        Log.d(TAG, "huat 6");
     }
 
     @Override
@@ -147,13 +208,16 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume() start");
+
+        isActivityVisible = true;
 
         this.registerReceiver(mReceiver, intentFilter);
 
         Log.d(TAG, "mBound: " + mBound);
         if (mBound) {
             if (mService.isPlaying()) {
-                updateScreen();
+                updateScreenAndNotification();
             }
         }
     }
@@ -161,6 +225,40 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        Log.d(TAG, "onPause() start");
+
+        isActivityVisible = false;
+        updateScreenAndNotification();
+    }
+
+    private void updateScreenAndNotification() {
+        Log.d(TAG, "updateScreenAndNotification()");
+
+        if (mService != null) {
+            if (mService.isPlaying()) {
+                if (isActivityVisible) {
+                    mService.cancelNotification();
+                } else {
+                    mService.showNotification();
+                }
+            }
+
+            if (mService.getCurrentTrack() != null) {
+                tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
+
+                int playCount = mService.getCurrentTrack().getCompletedCount() + mService.getCurrentTrack().getHalfPlayedCount();
+                tvCurrentTrackPlayCount.setText("" + playCount);
+
+                tvCurrentTrackSkipCount.setText(""+mService.getCurrentTrack().getSkippedCount());
+                //tvCurrentTrackSelectCount.setText(selected);
+                tvCurrentTrackLikeCount.setText(""+mService.getCurrentTrack().getLikedCount());
+                tvCurrentTrackDislikeCount.setText(""+mService.getCurrentTrack().getDislikedCount());
+
+                tvCurrentSessionType.setText(mService.getSessionTypeString());
+                tvCurrentTrackArtist.setText(mService.getCurrentTrack().getArtist());
+                tvCurrentTrackAlbum.setText(mService.getCurrentTrack().getAlbum());
+            }
+        }
     }
 
     @Override
@@ -179,9 +277,6 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         Log.d(TAG, "onDestroy()");
-
-        //stopService(new Intent(this, MediaPlayerService.class));
-
         this.unregisterReceiver(mReceiver);
     }
 
@@ -189,16 +284,21 @@ public class MainActivity extends Activity {
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
+            Log.d(TAG, "onServiceConnected() start");
             MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
             mService = binder.getService();
             mBound = true;
 
-            //TODO-note
-            //for dev purpose, auto-start MP upon bound
-            if (!mService.isPlaying()) {
-                mService.prepNextSong();
+            if (mService.isPlaying()) {
+                updateScreenAndNotification();
             } else {
-                updateScreen();
+                if (mService.getCurrentTrack() != null) {
+                    updateScreenAndNotification();
+                } else {
+                    if (rebuildLib) {
+                        new PopulateSongLibrary().execute();
+                    }
+                }
             }
         }
 
@@ -223,50 +323,89 @@ public class MainActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (id) {
+            case R.id.action_settings:
+                //noinspection SimplifiableIfStatement
+                return true;
+            case R.id.action_general:
+                mService.startSession(MediaPlayerService.SESSION_TYPE_GENERAL);
+                return true;
+            case R.id.action_newly_added_songs:
+                //mService.startSession(MediaPlayerService.SESSION_TYPE_NEW);
+                return true;
+            case R.id.action_underrated:
+                mService.startSession(MediaPlayerService.SESSION_TYPE_UNDERRATED);
+                return true;
+            case R.id.action_trash_tier:
+                //mService.startSession(MediaPlayerService.SESSION_TYPE_TRASH);
+                doSomething();
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-    private void updateScreen() {
-        Log.d(TAG, "updateScreen()");
+    private void doSomething() {
+        String local_id = null;
 
-        tvCurrentTrackTitle.setText(mService.getCurrentTrack().getTitle());
+        Track res = realm.where(Track.class)
+                .equalTo("album", local_id)
+                .findFirst();
+
+//        Track res2 = realm.where(Track.class)
+//                .equalTo("title", null)
+//                .equalTo("artist", cursor.getString(artistColumn))
+//                .equalTo("album", cursor.getString(albumColumn));
+
+        if (res == null) {
+            Log.d(TAG, "res is null!");
+        } else {
+            Log.d(TAG, "res is not null!");
+        }
+
     }
 
-    private class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
-
-
-        private ProgressDialog progressDialog;
+    public class PopulateSongLibrary extends AsyncTask<Void, Void, Void> {
 
         private boolean isLibEmpty = true;
+        private boolean rebuildStats = false;
+
+        private ProgressDialog progressDialog;
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
 
-            RealmResults<Track> res = realm.where(Track.class).findAll();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setMessage("Loading...");
+            progressDialog.setIndeterminate(false);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            RealmResults<Track> res = realm.where(Track.class).equalTo("isHidden", false).findAll();
 
             if (res.size() == 0) {
                 isLibEmpty = true;
-
-                progressDialog = new ProgressDialog(MainActivity.this);
-                progressDialog.setMessage("Loading...");
-                progressDialog.setIndeterminate(false);
-                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progressDialog.setCancelable(false);
-                progressDialog.show();
             } else {
                 isLibEmpty = false;
+
+                if (!res.isEmpty()) {
+                    if (res.first().getStatsUpdatedAt() == null || res.first().getStatsUpdatedAt().isEmpty()) {
+                        rebuildStats = true;
+                    } else {
+                        DateTime now = DateTime.now(Calendar.getInstance().getTimeZone());
+                        DateTime lastUpdated = new DateTime(res.first().getStatsUpdatedAt());
+
+                        rebuildStats = now.numSecondsFrom(lastUpdated) > 350; //XZ: might change this to daily
+                    }
+                }
             }
         }
 
         @Override
         protected Void doInBackground(Void... params) {
-            MySongManager.updateLibrary(getApplicationContext());
+            MySongManager.updateLibrary(getApplicationContext(), rebuildStats);
             return null;
         }
 
@@ -274,20 +413,22 @@ public class MainActivity extends Activity {
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             if (isLibEmpty) {
-                progressDialog.dismiss();
-                mService.startSession();
+                isLibEmpty = false;
             }
-        }
 
+            progressDialog.dismiss();
+        }
     }
+
     public void initService() {
         Log.d(TAG, "initService()");
-        Intent intent = new Intent(this, MediaPlayerService.class);
-        startService(intent);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+
+        if(!mBound) {
+            Intent intent = new Intent(this, MediaPlayerService.class);
+            startService(intent);
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        }
     }
-
-
 
     private void showShortToast(String s) {
         CharSequence text = s;
