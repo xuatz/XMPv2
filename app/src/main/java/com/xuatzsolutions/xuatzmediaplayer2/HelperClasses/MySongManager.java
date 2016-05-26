@@ -46,7 +46,7 @@ public class MySongManager {
         realm.beginTransaction();
         RealmResults<Track> res = realm.where(Track.class).findAll();
         for (int x = 0; x < res.size(); x++) {
-            res.get(0).setIsAvailable(false);
+            res.get(x).setIsAvailable(false);
         }
         realm.commitTransaction();
 
@@ -82,11 +82,8 @@ public class MySongManager {
 
         realm.beginTransaction();
 
-        String dateTimeNowToString = DateTime.now(Calendar.getInstance().getTimeZone()).toString();
-
         while (cursor.moveToNext()) {
-            Log.d(TAG, "duration: " + cursor.getInt(durationColumn));
-            int minimumDurationToConsiderAsSong = 60000;
+            int minimumDurationToConsiderAsSong = 61500;
 
             Track track = null;
 
@@ -110,9 +107,7 @@ public class MySongManager {
                     }
                 }
             } else {
-                if (cursor.getInt(durationColumn) < minimumDurationToConsiderAsSong) {
-                    //do nothing, skip next song
-                } else {
+                if (cursor.getInt(durationColumn) > minimumDurationToConsiderAsSong) {
 //                    Log.d(TAG, "hi6 - means its a new record");
 //                    Log.d(TAG, "cursor.getString(titleColumn): " + cursor.getString(titleColumn));
 //                    Log.d(TAG, "cursor.getString(artistColumn): " + cursor.getString(artistColumn));
