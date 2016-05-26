@@ -397,7 +397,7 @@ public class MainActivity extends Activity {
                         DateTime now = DateTime.now(Calendar.getInstance().getTimeZone());
                         DateTime lastUpdated = new DateTime(res.first().getStatsUpdatedAt());
 
-                        rebuildStats = now.numSecondsFrom(lastUpdated) > 100; //XZ: might change this to daily
+                        rebuildStats = now.numSecondsFrom(lastUpdated) > 350; //XZ: might change this to daily
                     }
                 }
             }

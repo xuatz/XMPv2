@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 import hirondelle.date4j.DateTime;
@@ -371,12 +373,6 @@ public class MediaPlayerService extends Service {
                 int likedCount = t.getLikedCount();
                 int dislikedCount = t.getDislikedCount();
 
-//                Log.d(TAG, "completedCount: " + completedCount);
-//                Log.d(TAG, "skippedCount: " + skippedCount);
-//                Log.d(TAG, "selectedCount: " + selectedCount);
-//                Log.d(TAG, "likedCount: " + likedCount);
-//                Log.d(TAG, "dislikedCount: " + dislikedCount);
-
                 if (completedCount + selectedCount < rookieThreshold) {
                     if (selectedCount > 2) {
                         if (skippedCount <= completedCount) {
@@ -408,10 +404,34 @@ public class MediaPlayerService extends Service {
         List<Track> tempList = new ArrayList<Track>();
 
         if (tempTrackList != null) {
+            Collections.sort(tempTrackList, new Comparator<Track>() {
+                @Override
+                public int compare(Track left, Track right) {
+                    return (left.getCompletedCount() + left.getSkippedCount()) - (right.getCompletedCount() + right.getSkippedCount());
+                }
+            });
+            Iterator<Track> iter = tempTrackList.iterator();
+
+            while (iter.hasNext()) {
+                Track newTrack = iter.next();
+                if (newTrack.getSkippedCount() + newTrack.getCompletedCount() > 3) {
+                    break;
+                }
+
+                if (Math.random() > 0.2) {
+                    tempList.add(newTrack);
+                    iter.remove();
+
+                    if (tempTrackList.size() > 3) {
+                        break;
+                    }
+                }
+            }
+
             Collections.shuffle(tempTrackList);
 
             for (Track t : tempTrackList) {
-                Log.d(TAG, "t.getTitle(): " + t.getTitle());
+                // Log.d(TAG, "t.getTitle(): " + t.getTitle());
 
                 int completedCount = t.getCompletedCount();
                 int skippedCount = t.getSkippedCount();
@@ -462,7 +482,6 @@ public class MediaPlayerService extends Service {
                 //double freshnessContribution    = 20; //TODO *WIP*
 
                 double points = chanceContribution + completedVsSkippedContribution + likeDislikeContribution;
-
 
                 if (points > PASSING_GRADE) {
                     tempList.add(t);
